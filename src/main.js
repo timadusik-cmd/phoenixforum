@@ -1434,12 +1434,29 @@ async function initApp() {
     console.error('Failed to load initial forum data:', err);
   }
 
-  // Real-time Heartbeat ping every 25 seconds to keep active session online
+  // Real-time Heartbeat ping: only active tabs and interactive users keep session online
+  let lastUserActivity = Date.now();
+  const markUserActive = () => { lastUserActivity = Date.now(); };
+  ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'].forEach(evt => {
+    window.addEventListener(evt, markUserActive, { passive: true });
+  });
+
   setInterval(async () => {
     try {
-      await api.users.heartbeat();
+      const isVisible = document.visibilityState === 'visible';
+      const isRecentlyActive = (Date.now() - lastUserActivity) < 4 * 60 * 1000;
+      if (isVisible && isRecentlyActive) {
+        await api.users.heartbeat();
+      }
     } catch {}
   }, 25000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      lastUserActivity = Date.now();
+      api.users.heartbeat().catch(() => {});
+    }
+  });
 
   // Periodic refresh of online stats every 15 seconds
   setInterval(async () => {

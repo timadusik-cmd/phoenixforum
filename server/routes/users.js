@@ -119,13 +119,13 @@ router.get('/stats/online', optionalAuth, (req, res) => {
   try {
     cleanGuestSessions();
 
-    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'guest';
-    if (req.user) {
-      db.prepare("UPDATE users SET status = 'online', last_seen_at = CURRENT_TIMESTAMP WHERE id = ?").run(req.user.id);
-      activeGuestSessions.delete(clientIp);
-    } else {
-      activeGuestSessions.set(clientIp, Date.now());
-    }
+    // Automatically mark inactive users as offline if last_seen_at is older than 5 minutes
+    db.prepare(`
+      UPDATE users 
+      SET status = 'offline' 
+      WHERE status = 'online' 
+        AND (last_seen_at IS NULL OR last_seen_at < datetime('now', '-5 minutes'))
+    `).run();
 
     // Only users active within the last 5 minutes are considered online right now
     const rawStaff = db.prepare(`

@@ -35,9 +35,10 @@ export function optionalAuth(req, res, next) {
 
     if (user && !user.is_banned) {
       req.user = user;
+      const isPassivePoll = req.originalUrl && req.originalUrl.includes('/stats/online');
       const now = Date.now();
       const lastUpdate = lastSeenCache.get(user.id) || 0;
-      if (now - lastUpdate > 15000) {
+      if (!isPassivePoll && (now - lastUpdate > 15000)) {
         lastSeenCache.set(user.id, now);
         try {
           db.prepare("UPDATE users SET status = 'online', last_seen_at = CURRENT_TIMESTAMP WHERE id = ?").run(user.id);

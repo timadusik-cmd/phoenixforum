@@ -183,8 +183,8 @@ export function renderSidebarRight() {
     staffOnline: [],
     usersOnline: [],
     totalMembersOnline: 0,
-    guestsOnline: 18,
-    totalOnline: 19,
+    guestsOnline: 0,
+    totalOnline: 0,
     recordOnline: 142
   };
 
