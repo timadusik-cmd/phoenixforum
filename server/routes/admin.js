@@ -1,0 +1,531 @@
+import { Router } from 'express';
+import db from '../db.js';
+import { requireAuth } from '../middleware/auth.js';
+import { requireRole } from '../middleware/rbac.js';
+import { getUserBadges } from '../utils/userBadges.js';
+
+const router = Router();
+
+// Middleware: all admin routes require at least moderator/admin
+router.use(requireAuth, requireRole('moderator'));
+
+// 1. Dashboard Stats
+router.get('/stats', (req, res) => {
+  try {
+    const totalUsers = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+    const totalThreads = db.prepare('SELECT COUNT(*) as count FROM threads').get().count;
+    const totalPosts = db.prepare('SELECT COUNT(*) as count FROM posts').get().count;
+    const pendingReports = db.prepare("SELECT COUNT(*) as count FROM reports WHERE status = 'pending'").get().count;
+    const bannedUsers = db.prepare('SELECT COUNT(*) as count FROM users WHERE is_banned = 1').get().count;
+
+    res.json({
+      stats: {
+        totalUsers,
+        totalThreads,
+        totalPosts,
+        pendingReports,
+        bannedUsers
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching admin stats:', err);
+    res.status(500).json({ error: 'Ошибка при получении статистики.' });
+  }
+});
+
+// 2. Manage Categories (Create, Update, Delete) - requires admin
+router.post('/categories', requireRole('admin'), (req, res) => {
+  try {
+    const { title, slug, description, icon, display_order, min_role_to_post } = req.body;
+    if (!title || !slug) {
+      return res.status(400).json({ error: 'Укажите название и URL-идентификатор (slug).' });
+    }
+
+    const catId = 'cat_' + Date.now();
+    db.prepare(`
+      INSERT INTO categories (id, slug, title, description, icon, display_order, min_role_to_post)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(catId, slug.toLowerCase().trim(), title.trim(), description || '', icon || 'forum', display_order || 0, min_role_to_post || 'player');
+
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'create_category', 'category', ?, ?, ?)
+    `).run('log_' + Date.now(), req.user.id, catId, `Создание раздела: ${title}`, req.ip || '');
+
+    res.json({ message: 'Раздел успешно создан!' });
+  } catch (err) {
+    console.error('Error creating category:', err);
+    res.status(500).json({ error: 'Ошибка при создании раздела.' });
+  }
+});
+
+router.put('/categories/:id', requireRole('admin'), (req, res) => {
+  try {
+    const { title, slug, description, icon, display_order, min_role_to_post } = req.body;
+
+    db.prepare(`
+      UPDATE categories 
+      SET title = COALESCE(?, title),
+          slug = COALESCE(?, slug),
+          description = COALESCE(?, description),
+          icon = COALESCE(?, icon),
+          display_order = COALESCE(?, display_order),
+          min_role_to_post = COALESCE(?, min_role_to_post)
+      WHERE id = ?
+    `).run(title, slug, description, icon, display_order, min_role_to_post, req.params.id);
+
+    res.json({ message: 'Раздел успешно обновлён.' });
+  } catch (err) {
+    console.error('Error updating category:', err);
+    res.status(500).json({ error: 'Ошибка при обновлении раздела.' });
+  }
+});
+
+router.delete('/categories/:id', requireRole('admin'), (req, res) => {
+  try {
+    db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
+    res.json({ message: 'Раздел удалён.' });
+  } catch (err) {
+    console.error('Error deleting category:', err);
+    res.status(500).json({ error: 'Ошибка при удалении раздела.' });
+  }
+});
+
+// 3. User Moderation: Change Role, Ban/Unban, Issue Warning
+router.put('/users/:id/role', requireRole('admin'), (req, res) => {
+  try {
+    const { role } = req.body;
+    const badges = {
+      superadmin: { badge: 'Главный Администратор', subtitle: 'Команда проекта', color: '#FF1F36' },
+      admin: { badge: 'Администратор', subtitle: 'Команда проекта', color: '#E52338' },
+      moderator: { badge: 'Модератор', subtitle: 'Команда форума', color: '#D81B60' },
+      helper: { badge: 'Хелпер', subtitle: 'Команда форума', color: '#FF9800' },
+      verified: { badge: 'Проверенный', subtitle: 'Пользователь', color: '#0091FF' },
+      streamer: { badge: 'Стример', subtitle: 'Специальный статус', color: '#A855F7' },
+      vip: { badge: 'VIP', subtitle: 'Привилегированный статус', color: '#10B981' },
+      player: { badge: 'Игрок', subtitle: 'Обычный пользователь', color: '#94A3B8' },
+      guest: { badge: 'Гость', subtitle: 'Незарегистрированный', color: '#64748B' },
+      developer: { badge: 'Разработчик', subtitle: 'Команда проекта', color: '#7C3AED' }
+    };
+
+    const allowed = Object.keys(badges);
+    if (!allowed.includes(role)) {
+      return res.status(400).json({ error: 'Недопустимая роль.' });
+    }
+
+    const targetUser = db.prepare('SELECT id, username FROM users WHERE id = ?').get(req.params.id);
+    if (!targetUser) return res.status(404).json({ error: 'Пользователь не найден.' });
+
+    const badgeInfo = badges[role];
+    db.prepare(`
+      UPDATE users 
+      SET role = ?, role_badge = ?, role_color = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(role, badgeInfo.badge, badgeInfo.color, targetUser.id);
+
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'change_user_role', 'user', ?, ?, ?)
+    `).run('log_' + Date.now(), req.user.id, targetUser.id, `Выдача плашки [${badgeInfo.badge}] (${role}) пользователю ${targetUser.username}`, req.ip || '');
+
+    res.json({
+      message: `Пользователю ${targetUser.username} успешно выдана плашка «${badgeInfo.badge}»!`,
+      user: {
+        id: targetUser.id,
+        username: targetUser.username,
+        role,
+        role_badge: badgeInfo.badge,
+        role_color: badgeInfo.color
+      }
+    });
+  } catch (err) {
+    console.error('Error changing role:', err);
+    res.status(500).json({ error: 'Ошибка при изменении роли.' });
+  }
+});
+
+// Ban / Unban user
+router.put('/users/:id/ban', requireRole('moderator'), (req, res) => {
+  try {
+    const { is_banned, ban_reason } = req.body;
+    const targetUser = db.prepare('SELECT id, username, role FROM users WHERE id = ?').get(req.params.id);
+    if (!targetUser) return res.status(404).json({ error: 'Пользователь не найден.' });
+
+    // Prevent banning superadmin
+    if (targetUser.role === 'superadmin') {
+      return res.status(403).json({ error: 'Нельзя заблокировать главного администратора.' });
+    }
+
+    db.prepare(`
+      UPDATE users 
+      SET is_banned = ?, ban_reason = ?, status = 'offline', updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(is_banned ? 1 : 0, is_banned ? (ban_reason || 'Нарушение правил проекта') : null, targetUser.id);
+
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, ?, 'user', ?, ?, ?)
+    `).run(
+      'log_' + Date.now(),
+      req.user.id,
+      is_banned ? 'ban_user' : 'unban_user',
+      targetUser.id,
+      `${is_banned ? 'Блокировка' : 'Разблокировка'} пользователя ${targetUser.username}. Причина: ${ban_reason || '—'}`,
+      req.ip || ''
+    );
+
+    res.json({ message: is_banned ? `Пользователь ${targetUser.username} заблокирован.` : `Пользователь ${targetUser.username} разблокирован.` });
+  } catch (err) {
+    console.error('Error banning user:', err);
+    res.status(500).json({ error: 'Ошибка при изменении блокировки пользователя.' });
+  }
+});
+
+// Issue Warning
+router.post('/users/:id/warn', requireRole('moderator'), (req, res) => {
+  try {
+    const { reason, points = 1 } = req.body;
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ error: 'Укажите причину предупреждения.' });
+    }
+
+    const targetUser = db.prepare('SELECT id, username FROM users WHERE id = ?').get(req.params.id);
+    if (!targetUser) return res.status(404).json({ error: 'Пользователь не найден.' });
+
+    const warnId = 'warn_' + Date.now();
+    db.prepare(`
+      INSERT INTO warnings (id, user_id, moderator_id, reason, points, created_at)
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(warnId, targetUser.id, req.user.id, reason.trim(), parseInt(points));
+
+    // Send notification to user
+    db.prepare(`
+      INSERT INTO notifications (id, user_id, type, title, text, link, is_read, created_at)
+      VALUES (?, ?, 'warning', 'Вам выдано предупреждение от модератора', ?, ?, 0, CURRENT_TIMESTAMP)
+    `).run('notif_' + Date.now(), targetUser.id, `Причина: ${reason.trim()} (+${points} варн)`, '/forum/rules');
+
+    // Audit log
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'warn_user', 'user', ?, ?, ?)
+    `).run('log_' + Date.now(), req.user.id, targetUser.id, `Выдача варна пользователю ${targetUser.username}: ${reason}`, req.ip || '');
+
+    res.json({ message: `Предупреждение выдано пользователю ${targetUser.username}.` });
+  } catch (err) {
+    console.error('Error issuing warning:', err);
+    res.status(500).json({ error: 'Ошибка при выдаче предупреждения.' });
+  }
+});
+
+// 4. Audit Logs (view recent actions)
+router.get('/audit-logs', requireRole('admin'), (req, res) => {
+  try {
+    const logs = db.prepare(`
+      SELECT l.*, u.username as user_name, u.avatar as user_avatar, u.role_badge as user_badge
+      FROM audit_logs l
+      LEFT JOIN users u ON l.user_id = u.id
+      ORDER BY l.created_at DESC
+      LIMIT 100
+    `).all();
+
+    res.json({ logs });
+  } catch (err) {
+    console.error('Error fetching audit logs:', err);
+    res.status(500).json({ error: 'Ошибка при загрузке журнала аудита.' });
+  }
+});
+
+// ==============================================================
+// 5. CUSTOM BADGES MANAGEMENT (Only Superadmin & Admin)
+// ==============================================================
+
+function slugifyBadge(text) {
+  const ruMap = {
+    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e', 'ж': 'zh',
+    'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o',
+    'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'ts',
+    'ч': 'ch', 'ш': 'sh', 'щ': 'sch', 'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'
+  };
+  const slug = String(text || '').toLowerCase().split('').map(c => ruMap[c] || c).join('')
+    .replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  return slug || ('badge_' + Date.now().toString(36));
+}
+
+function hexToRgba(hex, alpha = 0.4) {
+  let c = String(hex || '#FF1F36').replace('#', '');
+  if (c.length === 3) c = c.split('').map(x => x + x).join('');
+  const num = parseInt(c, 16);
+  if (isNaN(num)) return `rgba(255, 31, 54, ${alpha})`;
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// GET all custom badges
+router.get('/custom-badges', requireRole('admin'), (req, res) => {
+  try {
+    const badges = db.prepare(`
+      SELECT cb.*, 
+             u.username as creator_name,
+             (SELECT COUNT(*) FROM user_badges ub WHERE ub.badge_key = cb.key) as assigned_users_count
+      FROM custom_badges cb
+      LEFT JOIN users u ON cb.created_by = u.id
+      ORDER BY cb.level DESC, cb.created_at DESC
+    `).all();
+
+    res.json({ customBadges: badges });
+  } catch (err) {
+    console.error('Error fetching custom badges:', err);
+    res.status(500).json({ error: 'Ошибка при загрузке кастомных плашек.' });
+  }
+});
+
+// POST create new custom badge (Only Superadmin and Admin)
+router.post('/custom-badges', requireRole('admin'), (req, res) => {
+  try {
+    const { title, subtitle, color, glow, icon, level } = req.body;
+    let { key } = req.body;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Укажите название плашки (например, «ШЕФ LSPD»).' });
+    }
+
+    if (!key || !key.trim()) {
+      key = slugifyBadge(title);
+    } else {
+      key = slugifyBadge(key);
+    }
+
+    // Check if key already exists in custom_badges
+    const existing = db.prepare('SELECT id FROM custom_badges WHERE key = ?').get(key);
+    if (existing) {
+      key = key + '_' + Date.now().toString(36).slice(-3);
+    }
+
+    const badgeColor = (color && color.trim()) ? color.trim() : '#FF1F36';
+    const badgeGlow = (glow && glow.trim()) ? glow.trim() : hexToRgba(badgeColor, 0.4);
+    const badgeIcon = (icon && icon.trim()) ? icon.trim() : 'crown';
+    const badgeLevel = Math.min(5, Math.max(1, parseInt(level) || 1));
+    const badgeSubtitle = (subtitle && subtitle.trim()) ? subtitle.trim() : 'Особый статус';
+    const badgeId = 'cb_' + Date.now();
+
+    db.prepare(`
+      INSERT INTO custom_badges (id, key, title, subtitle, color, glow, icon, level, created_by, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(
+      badgeId,
+      key,
+      title.trim().toUpperCase(),
+      badgeSubtitle,
+      badgeColor,
+      badgeGlow,
+      badgeIcon,
+      badgeLevel,
+      req.user.id
+    );
+
+    // Audit Log
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'create_custom_badge', 'custom_badge', ?, ?, ?)
+    `).run(
+      'log_' + Date.now(),
+      req.user.id,
+      badgeId,
+      `Создание кастомной плашки: «${title.trim().toUpperCase()}» [${key}] (Цвет: ${badgeColor}, Ур: ${badgeLevel})`,
+      req.ip || ''
+    );
+
+    const created = db.prepare('SELECT * FROM custom_badges WHERE id = ?').get(badgeId);
+    res.json({
+      message: `Плашка «${created.title}» успешно создана!`,
+      badge: created
+    });
+  } catch (err) {
+    console.error('Error creating custom badge:', err);
+    res.status(500).json({ error: 'Ошибка при создании кастомной плашки.' });
+  }
+});
+
+// PUT update custom badge
+router.put('/custom-badges/:id', requireRole('admin'), (req, res) => {
+  try {
+    const { title, subtitle, color, glow, icon, level } = req.body;
+    const badge = db.prepare('SELECT * FROM custom_badges WHERE id = ?').get(req.params.id);
+    if (!badge) {
+      return res.status(404).json({ error: 'Плашка не найдена.' });
+    }
+
+    const badgeColor = color ? color.trim() : badge.color;
+    const badgeGlow = glow ? glow.trim() : (color ? hexToRgba(badgeColor, 0.4) : badge.glow);
+
+    db.prepare(`
+      UPDATE custom_badges
+      SET title = COALESCE(?, title),
+          subtitle = COALESCE(?, subtitle),
+          color = ?,
+          glow = ?,
+          icon = COALESCE(?, icon),
+          level = COALESCE(?, level)
+      WHERE id = ?
+    `).run(
+      title ? title.trim().toUpperCase() : null,
+      subtitle ? subtitle.trim() : null,
+      badgeColor,
+      badgeGlow,
+      icon ? icon.trim() : null,
+      level !== undefined ? parseInt(level) : null,
+      badge.id
+    );
+
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'update_custom_badge', 'custom_badge', ?, ?, ?)
+    `).run(
+      'log_' + Date.now(),
+      req.user.id,
+      badge.id,
+      `Обновление плашки [${badge.key}]: «${title || badge.title}»`,
+      req.ip || ''
+    );
+
+    const updated = db.prepare('SELECT * FROM custom_badges WHERE id = ?').get(badge.id);
+    res.json({ message: 'Плашка успешно обновлена.', badge: updated });
+  } catch (err) {
+    console.error('Error updating custom badge:', err);
+    res.status(500).json({ error: 'Ошибка при обновлении плашки.' });
+  }
+});
+
+// DELETE custom badge
+router.delete('/custom-badges/:id', requireRole('admin'), (req, res) => {
+  try {
+    const badge = db.prepare('SELECT * FROM custom_badges WHERE id = ?').get(req.params.id);
+    if (!badge) {
+      return res.status(404).json({ error: 'Плашка не найдена.' });
+    }
+
+    // Delete user assignments
+    db.prepare('DELETE FROM user_badges WHERE badge_key = ?').run(badge.key);
+    db.prepare('DELETE FROM custom_badges WHERE id = ?').run(badge.id);
+
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'delete_custom_badge', 'custom_badge', ?, ?, ?)
+    `).run(
+      'log_' + Date.now(),
+      req.user.id,
+      badge.id,
+      `Удаление кастомной плашки: «${badge.title}» [${badge.key}]`,
+      req.ip || ''
+    );
+
+    res.json({ message: `Плашка «${badge.title}» успешно удалена.` });
+  } catch (err) {
+    console.error('Error deleting custom badge:', err);
+    res.status(500).json({ error: 'Ошибка при удалении плашки.' });
+  }
+});
+
+// ==============================================================
+// 6. USER MULTI-BADGES ASSIGNMENT (Only Superadmin & Admin)
+// ==============================================================
+
+// GET all badges for a user
+router.get('/users/:id/badges', requireRole('admin'), (req, res) => {
+  try {
+    const targetUser = db.prepare('SELECT id, username, role, role_badge, role_color FROM users WHERE id = ?').get(req.params.id);
+    if (!targetUser) return res.status(404).json({ error: 'Пользователь не найден.' });
+
+    const badges = getUserBadges(targetUser.id, targetUser);
+    res.json({ badges, user: targetUser });
+  } catch (err) {
+    console.error('Error fetching user badges:', err);
+    res.status(500).json({ error: 'Ошибка при получении плашек пользователя.' });
+  }
+});
+
+// POST assign badge to user
+router.post('/users/:id/badges', requireRole('admin'), (req, res) => {
+  try {
+    const { badge_key, is_primary = false } = req.body;
+    if (!badge_key) return res.status(400).json({ error: 'Не указан ключ плашки (badge_key).' });
+
+    const targetUser = db.prepare('SELECT id, username, role, role_badge, role_color FROM users WHERE id = ?').get(req.params.id);
+    if (!targetUser) return res.status(404).json({ error: 'Пользователь не найден.' });
+
+    // If making primary, unmark existing primary
+    if (is_primary) {
+      db.prepare('UPDATE user_badges SET is_primary = 0 WHERE user_id = ?').run(targetUser.id);
+    }
+
+    const badgeId = 'ub_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    db.prepare(`
+      INSERT INTO user_badges (id, user_id, badge_key, is_primary, display_order, created_at)
+      VALUES (?, ?, ?, ?, (SELECT COUNT(*) FROM user_badges WHERE user_id = ?), CURRENT_TIMESTAMP)
+      ON CONFLICT(user_id, badge_key) DO UPDATE SET is_primary = excluded.is_primary
+    `).run(badgeId, targetUser.id, badge_key, is_primary ? 1 : 0, targetUser.id);
+
+    // Audit log
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'assign_badge', 'user', ?, ?, ?)
+    `).run(
+      'log_' + Date.now(),
+      req.user.id,
+      targetUser.id,
+      `Выдача плашки [${badge_key}] пользователю ${targetUser.username}`,
+      req.ip || ''
+    );
+
+    const updatedBadges = getUserBadges(targetUser.id, targetUser);
+    res.json({
+      message: `Плашка [${badge_key}] успешно выдана пользователю ${targetUser.username}!`,
+      badges: updatedBadges
+    });
+  } catch (err) {
+    console.error('Error assigning badge to user:', err);
+    res.status(500).json({ error: 'Ошибка при выдаче плашки пользователю.' });
+  }
+});
+
+// DELETE remove badge from user
+router.delete('/users/:id/badges/:badge_key', requireRole('admin'), (req, res) => {
+  try {
+    const { badge_key } = req.params;
+    const targetUser = db.prepare('SELECT id, username, role, role_badge, role_color FROM users WHERE id = ?').get(req.params.id);
+    if (!targetUser) return res.status(404).json({ error: 'Пользователь не найден.' });
+
+    db.prepare('DELETE FROM user_badges WHERE user_id = ? AND badge_key = ?').run(targetUser.id, badge_key);
+
+    // If no primary badge left, ensure at least one is primary if rows exist
+    const hasPrimary = db.prepare('SELECT COUNT(*) as count FROM user_badges WHERE user_id = ? AND is_primary = 1').get(targetUser.id).count;
+    if (hasPrimary === 0) {
+      db.prepare('UPDATE user_badges SET is_primary = 1 WHERE id = (SELECT id FROM user_badges WHERE user_id = ? LIMIT 1)').run(targetUser.id);
+    }
+
+    // Audit log
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'remove_badge', 'user', ?, ?, ?)
+    `).run(
+      'log_' + Date.now(),
+      req.user.id,
+      targetUser.id,
+      `Снятие плашки [${badge_key}] у пользователя ${targetUser.username}`,
+      req.ip || ''
+    );
+
+    const updatedBadges = getUserBadges(targetUser.id, targetUser);
+    res.json({
+      message: `Плашка [${badge_key}] снята у пользователя ${targetUser.username}.`,
+      badges: updatedBadges
+    });
+  } catch (err) {
+    console.error('Error removing badge from user:', err);
+    res.status(500).json({ error: 'Ошибка при снятии плашки.' });
+  }
+});
+
+export default router;
