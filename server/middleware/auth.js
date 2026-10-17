@@ -15,6 +15,8 @@ export function generateToken(user) {
   );
 }
 
+const lastSeenCache = new Map();
+
 export function optionalAuth(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -33,6 +35,14 @@ export function optionalAuth(req, res, next) {
 
     if (user && !user.is_banned) {
       req.user = user;
+      const now = Date.now();
+      const lastUpdate = lastSeenCache.get(user.id) || 0;
+      if (now - lastUpdate > 15000) {
+        lastSeenCache.set(user.id, now);
+        try {
+          db.prepare("UPDATE users SET status = 'online', last_seen_at = CURRENT_TIMESTAMP WHERE id = ?").run(user.id);
+        } catch (e) {}
+      }
     } else {
       req.user = null;
     }

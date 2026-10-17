@@ -1434,7 +1434,14 @@ async function initApp() {
     console.error('Failed to load initial forum data:', err);
   }
 
-  // Periodic refresh of online stats every 30 seconds
+  // Real-time Heartbeat ping every 25 seconds to keep active session online
+  setInterval(async () => {
+    try {
+      await api.users.heartbeat();
+    } catch {}
+  }, 25000);
+
+  // Periodic refresh of online stats every 15 seconds
   setInterval(async () => {
     try {
       const stats = await api.users.getOnlineStats();
@@ -1447,7 +1454,7 @@ async function initApp() {
         }
       }
     } catch {}
-  }, 30000);
+  }, 15000);
 
   // 3. Subscribe State Change to Re-render Header & Sidebars
   subscribe(() => {

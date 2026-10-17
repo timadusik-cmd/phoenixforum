@@ -246,9 +246,9 @@ export function renderSidebarRight() {
 
   // 2. Forum Online Widget
   const allUsers = (stats.usersOnline && stats.usersOnline.length > 0) ? stats.usersOnline : [];
-  const totalMembersOnline = stats.totalMembersOnline || allUsers.length;
-  const guestsCount = stats.guestsOnline || 18;
-  const totalOnline = stats.totalOnline || (totalMembersOnline + guestsCount);
+  const totalMembersOnline = typeof stats.totalMembersOnline === 'number' ? stats.totalMembersOnline : allUsers.length;
+  const guestsCount = typeof stats.guestsOnline === 'number' ? stats.guestsOnline : 0;
+  const totalOnline = typeof stats.totalOnline === 'number' ? stats.totalOnline : (totalMembersOnline + guestsCount);
   const recordCount = stats.recordOnline || 142;
 
   let usersChipsHtml = '';

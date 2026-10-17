@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { getUserBadges } from '../utils/userBadges.js';
+import { optionalAuth } from '../middleware/auth.js';
+
+// Ensure last_seen_at column exists in users table
+try {
+  db.exec("ALTER TABLE users ADD COLUMN last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP");
+} catch (e) {}
 
 const router = Router();
 
@@ -79,13 +85,55 @@ router.get('/', (req, res) => {
   }
 });
 
-// GET Online Users & Staff
-router.get('/stats/online', (req, res) => {
+// Real-time Guest Sessions tracking (active within the last 5 minutes)
+const activeGuestSessions = new Map();
+
+function cleanGuestSessions() {
+  const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+  for (const [ip, ts] of activeGuestSessions.entries()) {
+    if (ts < fiveMinAgo) {
+      activeGuestSessions.delete(ip);
+    }
+  }
+}
+
+// POST Heartbeat - updates user or guest last_seen_at
+router.post('/heartbeat', optionalAuth, (req, res) => {
   try {
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'guest';
+    if (req.user) {
+      db.prepare("UPDATE users SET status = 'online', last_seen_at = CURRENT_TIMESTAMP WHERE id = ?").run(req.user.id);
+      activeGuestSessions.delete(clientIp);
+    } else {
+      activeGuestSessions.set(clientIp, Date.now());
+    }
+    cleanGuestSessions();
+    res.json({ status: 'ok' });
+  } catch (err) {
+    res.status(500).json({ error: 'Heartbeat error' });
+  }
+});
+
+// GET Online Users & Staff (ONLY users active in the last 5 minutes)
+router.get('/stats/online', optionalAuth, (req, res) => {
+  try {
+    cleanGuestSessions();
+
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'guest';
+    if (req.user) {
+      db.prepare("UPDATE users SET status = 'online', last_seen_at = CURRENT_TIMESTAMP WHERE id = ?").run(req.user.id);
+      activeGuestSessions.delete(clientIp);
+    } else {
+      activeGuestSessions.set(clientIp, Date.now());
+    }
+
+    // Only users active within the last 5 minutes are considered online right now
     const rawStaff = db.prepare(`
-      SELECT id, username, character_name, avatar, role, role_color, role_badge, status, level
+      SELECT id, username, character_name, avatar, role, role_color, role_badge, status, level, last_seen_at
       FROM users
       WHERE status = 'online'
+        AND last_seen_at IS NOT NULL
+        AND last_seen_at >= datetime('now', '-5 minutes')
       ORDER BY 
         CASE role 
           WHEN 'superadmin' THEN 1 
@@ -119,9 +167,11 @@ router.get('/stats/online', (req, res) => {
       });
 
     const allOnline = db.prepare(`
-      SELECT id, username, character_name, avatar, role, role_color, role_badge, status, level
+      SELECT id, username, character_name, avatar, role, role_color, role_badge, status, level, last_seen_at
       FROM users
       WHERE status = 'online'
+        AND last_seen_at IS NOT NULL
+        AND last_seen_at >= datetime('now', '-5 minutes')
       ORDER BY 
         CASE role 
           WHEN 'superadmin' THEN 1 
@@ -139,15 +189,24 @@ router.get('/stats/online', (req, res) => {
       badges: getUserBadges(u.id, u)
     }));
 
-    const totalMembersOnline = db.prepare("SELECT COUNT(*) as count FROM users WHERE status = 'online'").get().count;
+    const totalMembersOnline = db.prepare(`
+      SELECT COUNT(*) as count 
+      FROM users 
+      WHERE status = 'online' 
+        AND last_seen_at IS NOT NULL 
+        AND last_seen_at >= datetime('now', '-5 minutes')
+    `).get().count;
+
+    const guestsOnline = activeGuestSessions.size;
+    const totalOnline = totalMembersOnline + guestsOnline;
 
     res.json({
       staffOnline: staffWithBadges,
       usersOnline: usersWithBadges,
       totalMembersOnline,
-      guestsOnline: 18,
-      totalOnline: totalMembersOnline + 18,
-      recordOnline: 142
+      guestsOnline,
+      totalOnline,
+      recordOnline: Math.max(142, totalOnline)
     });
   } catch (err) {
     console.error('Error fetching online stats:', err);

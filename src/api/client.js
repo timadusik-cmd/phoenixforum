@@ -92,8 +92,12 @@ export const api = {
         return request('/api/auth/cover', { method: 'POST', body: { coverUrl: formDataOrUrl } });
       }
     },
-    changePassword: (oldPassword, newPassword) => request('/api/auth/change-password', { method: 'POST', body: { oldPassword, newPassword } }),
-    logout: () => authStorage.clearToken()
+    logout: async () => {
+      try {
+        await request('/api/auth/logout', { method: 'POST' });
+      } catch {}
+      authStorage.clearToken();
+    }
   },
 
   // Categories
@@ -144,7 +148,8 @@ export const api = {
       return request(`/api/users?${query}`);
     },
     getProfile: (idOrName) => request(`/api/users/${encodeURIComponent(idOrName)}`),
-    getOnlineStats: () => request('/api/users/stats/online')
+    getOnlineStats: () => request('/api/users/stats/online'),
+    heartbeat: () => request('/api/users/heartbeat', { method: 'POST' })
   },
 
   // Notifications

@@ -268,4 +268,17 @@ router.post('/change-password', requireAuth, (req, res) => {
   }
 });
 
+// 7. Logout (set user offline immediately)
+router.post('/logout', optionalAuth, (req, res) => {
+  try {
+    if (req.user) {
+      db.prepare("UPDATE users SET status = 'offline', last_seen_at = datetime('now', '-1 day') WHERE id = ?").run(req.user.id);
+    }
+    res.json({ message: 'Вы успешно вышли из системы.' });
+  } catch (err) {
+    console.error('Logout error:', err);
+    res.status(500).json({ error: 'Ошибка при выходе.' });
+  }
+});
+
 export default router;
