@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 server/data/*.db-wal
 server/data/*.db-shm
+vps_exec.cjs
 phoenix_deploy.zip
 phoenix_frontend.zip
 public/uploads/*
