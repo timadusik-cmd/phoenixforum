@@ -121,7 +121,28 @@ router.get('/:slug', (req, res) => {
     const { slug } = req.params;
     const { filter, page = 1, limit = 20 } = req.query;
 
-    const category = db.prepare('SELECT * FROM categories WHERE slug = ?').get(slug);
+    let category = db.prepare('SELECT * FROM categories WHERE slug = ?').get(slug);
+    if (!category) {
+      category = db.prepare('SELECT * FROM categories WHERE id = ? OR LOWER(slug) = LOWER(?)').get(slug, slug);
+    }
+    if (!category) {
+      // Alias fallbacks for transliterated / legacy slugs
+      if (slug === 'novosti_servera1' || slug === 'novosti_servera' || slug === 'novosti-servera1') {
+        category = db.prepare('SELECT * FROM categories WHERE slug = ? OR id = ? OR slug = ?').get('news1', 'cat_1792238928392', 'novosti_servera1');
+      } else if (slug === 'news1') {
+        category = db.prepare('SELECT * FROM categories WHERE slug = ? OR id = ?').get('novosti_servera1', 'cat_1792238928392');
+      }
+    }
+    if (!category) {
+      // Fallback: check clean slug (ignoring hyphens/underscores)
+      const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const allCats = db.prepare('SELECT * FROM categories').all();
+      category = allCats.find(c => {
+        const cClean = c.slug.toLowerCase().replace(/[^a-z0-9]/g, '');
+        return cClean === cleanSlug;
+      });
+    }
+
     if (!category) {
       return res.status(404).json({ error: 'Раздел форума не найден.' });
     }
@@ -134,8 +155,10 @@ router.get('/:slug', (req, res) => {
 
     const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
 
+    // Threads in this category or if parent section, threads in this category and its direct subsections
     const threads = db.prepare(`
       SELECT t.*,
+             c.title as category_title, c.slug as category_slug,
              u.id as author_id, u.username as author_name, u.avatar as author_avatar, 
              u.role as author_role, u.role_badge as author_badge, u.role_color as author_color,
              (SELECT COUNT(*) FROM posts p WHERE p.thread_id = t.id) - 1 AS replies_count,
@@ -143,10 +166,18 @@ router.get('/:slug', (req, res) => {
              (SELECT u2.username FROM posts p3 JOIN users u2 ON p3.author_id = u2.id WHERE p3.thread_id = t.id ORDER BY p3.created_at DESC LIMIT 1) as last_reply_user
       FROM threads t
       JOIN users u ON t.author_id = u.id
-      WHERE t.category_id = ? ${filterClause}
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE (t.category_id = ? OR t.category_id IN (SELECT id FROM categories WHERE parent_id = ?)) ${filterClause}
       ORDER BY t.is_pinned DESC, t.updated_at DESC
       LIMIT ? OFFSET ?
-    `).all(category.id, parseInt(limit), offset);
+    `).all(category.id, category.id, parseInt(limit), offset);
+
+    const countRow = db.prepare(`
+      SELECT COUNT(*) as count 
+      FROM threads t 
+      WHERE (t.category_id = ? OR t.category_id IN (SELECT id FROM categories WHERE parent_id = ?)) ${filterClause}
+    `).get(category.id, category.id);
+    const totalThreads = countRow ? countRow.count : 0;
 
     const subSections = db.prepare(`
       SELECT c.*,
@@ -157,8 +188,14 @@ router.get('/:slug', (req, res) => {
       ORDER BY c.display_order ASC
     `).all(category.id);
 
+    let parentCategory = null;
+    if (category.parent_id) {
+      parentCategory = db.prepare('SELECT id, title, slug, icon, icon_color, icon_bg FROM categories WHERE id = ?').get(category.parent_id);
+    }
+
     res.json({
       category,
+      parentCategory,
       subSections,
       threads,
       pagination: {
