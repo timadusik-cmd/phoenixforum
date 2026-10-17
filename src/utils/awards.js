@@ -173,10 +173,73 @@ export function getAwardSvg(iconKey) {
   }
 }
 
-// Render Award Card (matching 5x4 grid in reference image)
+// 3D Generated Award Image Assets
+export const AWARD_IMAGES = {
+  award_01: '/assets/awards/phoenix.jpg',   // ПЕРВЫЙ ПОЛЬЗОВАТЕЛЬ
+  award_02: '/assets/awards/crown.jpg',     // СТАРОЖИЛ ФОРУМА
+  award_03: '/assets/awards/chat.jpg',      // АКТИВНЫЙ УЧАСТНИК
+  award_04: '/assets/awards/flame.jpg',     // ЛИДЕР ОБСУЖДЕНИЙ
+  award_05: '/assets/awards/star.jpg',      // ЛУЧШИЙ ПОСТ
+  award_06: '/assets/awards/grad.jpg',      // ЭКСПЕРТ СЕРВЕРА
+  award_07: '/assets/awards/handshake.jpg', // ПОМОЩНИК НОВИЧКОВ
+  award_08: '/assets/awards/heart.jpg',     // ПОДДЕРЖКА ПРОЕКТА
+  award_09: '/assets/awards/crown.jpg',     // УЧАСТНИК ИВЕНТОВ
+  award_10: '/assets/awards/crate.jpg',     // КАЗНАЧЕЙ ФОРУМА
+  award_11: '/assets/awards/crown.jpg',     // ЦЕНИТЕЛЬ СТИЛЯ
+  award_12: '/assets/awards/crate.jpg',     // КОЛЛЕКЦИОНЕР РЕДКОСТЕЙ
+  award_13: '/assets/awards/dice.jpg',      // ВЕЗУНЧИК
+  award_14: '/assets/awards/speed.jpg',     // ГОНЩИК ФОРУМА
+  award_15: '/assets/awards/heart.jpg',     // ФОТОГРАФ ПРОЕКТА
+  award_16: '/assets/awards/flame.jpg',     // МАСТЕР КРЕАТИВА
+  award_17: '/assets/awards/handshake.jpg', // ДРУГ СООБЩЕСТВА
+  award_18: '/assets/awards/shield.jpg',    // ВЕТЕРАН ПРОЕКТА
+  award_19: '/assets/awards/star.jpg',      // ЛЕГЕНДА ФОРУМА
+  award_20: '/assets/awards/phoenix.jpg',   // ГЛАВНЫЙ АКТИВИСТ
+};
+
+export function getAwardImage(award) {
+  if (award && award.id && AWARD_IMAGES[award.id]) {
+    return AWARD_IMAGES[award.id];
+  }
+  const keyMap = {
+    phoenix: '/assets/awards/phoenix.jpg',
+    crown_laurel: '/assets/awards/crown.jpg',
+    chat_laurel: '/assets/awards/chat.jpg',
+    flame_laurel: '/assets/awards/flame.jpg',
+    star_doc: '/assets/awards/star.jpg',
+    grad_cap: '/assets/awards/grad.jpg',
+    handshake_laurel: '/assets/awards/handshake.jpg',
+    heart_laurel: '/assets/awards/heart.jpg',
+    calendar_check: '/assets/awards/crown.jpg',
+    coins_laurel: '/assets/awards/crate.jpg',
+    jacket: '/assets/awards/crown.jpg',
+    lootbox: '/assets/awards/crate.jpg',
+    dice: '/assets/awards/dice.jpg',
+    speedometer: '/assets/awards/speed.jpg',
+    camera: '/assets/awards/heart.jpg',
+    lightbulb: '/assets/awards/flame.jpg',
+    users_group: '/assets/awards/handshake.jpg',
+    shield_star: '/assets/awards/shield.jpg',
+    legend_star: '/assets/awards/star.jpg',
+    phoenix_activist: '/assets/awards/phoenix.jpg'
+  };
+  return (award && keyMap[award.icon_key]) || '/assets/awards/phoenix.jpg';
+}
+
+export function getRankTitle(level = 1) {
+  const lvl = parseInt(level) || 1;
+  if (lvl >= 50) return 'ЛЕГЕНДА ФОРУМА';
+  if (lvl >= 40) return 'МАСТЕР ПРОЕКТА';
+  if (lvl >= 30) return 'ВЕТЕРАН СООБЩЕСТВА';
+  if (lvl >= 20) return 'ОПЫТНЫЙ УЧАСТНИК';
+  if (lvl >= 10) return 'АКТИВИСТ RP';
+  return 'НОВИЧОК ФОРУМА';
+}
+
+// Render Award Card (matching 5x4 grid in reference image with 3D generated icons)
 export function renderAwardCard(award, isUnlocked = false, unlockedAt = null) {
   const num = award.number || '01';
-  const iconSvg = getAwardSvg(award.icon_key);
+  const imgUrl = getAwardImage(award);
   const statusClass = isUnlocked ? 'unlocked' : 'locked';
 
   return `
@@ -187,10 +250,8 @@ export function renderAwardCard(award, isUnlocked = false, unlockedAt = null) {
       </div>
 
       <div class="award-emblem-wrap">
-        <div class="award-glow-circle">
-          <svg viewBox="0 0 24 24" class="award-icon-svg">
-            ${iconSvg}
-          </svg>
+        <div class="award-glow-circle ${statusClass}">
+          <img src="${imgUrl}" alt="${award.title}" class="award-3d-img" />
         </div>
       </div>
 
@@ -208,7 +269,7 @@ export function renderAwardCard(award, isUnlocked = false, unlockedAt = null) {
   `;
 }
 
-// Render Mini Awards Rack for thread post author block
+// Render Mini Awards Rack for thread post author block with rich 3D icons
 export function renderMiniAwards(awardsList = [], max = 4) {
   if (!awardsList || awardsList.length === 0) return '';
   const displayList = awardsList.slice(0, max);
@@ -216,14 +277,16 @@ export function renderMiniAwards(awardsList = [], max = 4) {
 
   return `
     <div class="author-mini-awards-rack" title="Награды автора (${awardsList.length})">
-      ${displayList.map(a => `
-        <div class="mini-award-item" title="[${a.number || ''}] ${a.title || ''}">
-          <svg viewBox="0 0 24 24" class="mini-award-svg">
-            ${getAwardSvg(a.icon_key)}
-          </svg>
-        </div>
-      `).join('')}
-      ${moreCount > 0 ? `<div class="mini-award-more">+${moreCount}</div>` : ''}
+      ${displayList.map(a => {
+        const imgUrl = getAwardImage(a);
+        return `
+          <div class="mini-award-item" title="[${a.number || ''}] ${a.title || ''}">
+            <img src="${imgUrl}" alt="${a.title || 'Награда'}" class="mini-award-img" />
+          </div>
+        `;
+      }).join('')}
+      ${moreCount > 0 ? `<div class="mini-award-more" title="Ещё ${moreCount} наград">+${moreCount}</div>` : ''}
     </div>
   `;
 }
+

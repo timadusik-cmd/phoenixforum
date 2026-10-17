@@ -4,7 +4,7 @@ import { ICONS } from '../utils/icons.js';
 import { renderRichEditor } from '../components/RichEditor.js';
 import { renderRoleBadge, renderUserBadges } from '../utils/badges.js';
 import { formatTimeAgo } from '../utils/time.js';
-import { renderLevelShield, renderMiniAwards } from '../utils/awards.js';
+import { renderLevelShield, renderMiniAwards, getRankTitle } from '../utils/awards.js';
 
 // Rich Markdown & BBCode parser for post content
 export function formatPostContent(rawText) {
@@ -195,16 +195,28 @@ export function renderThreadView(data) {
                 <a href="/forum/member/${post.author_id}" data-link class="post-author-name" style="color: ${post.author_color || '#FF8A00'};">
                   ${post.author_name}
                 </a>
-                <div class="post-author-badge-wrap" style="margin: 4px 0 6px 0; width: 100%; display: flex; justify-content: center;">
+                <div class="post-author-badge-wrap" style="margin: 4px 0 6px 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px;">
                   ${renderUserBadges(post, { size: 'sidebar' })}
                 </div>
 
+                <!-- Prominent Author Level Showcase -->
+                <div class="author-level-rank-card" title="Уровень форума: ${post.author_level || 1} • ${getRankTitle(post.author_level || 1)}">
+                  <div class="author-level-shield-box">
+                    <img src="/assets/awards/level_shield.jpg" alt="LVL" class="author-level-3d-shield" />
+                    <span class="author-level-number-tag">${post.author_level || 1}</span>
+                  </div>
+                  <div class="author-level-text-col">
+                    <span class="author-level-sup-title">УРОВЕНЬ ФОРУМА</span>
+                    <span class="author-level-rank-name">${getRankTitle(post.author_level || 1)}</span>
+                  </div>
+                </div>
+
                 <div class="post-author-stats">
-                  <div class="stat-row">
+                  <div class="stat-row highlight-level-stat">
                     <span class="lbl">Уровень:</span>
-                    <div style="display: flex; align-items: center; gap: 4px;">
-                      ${renderLevelShield(post.author_level || 1, { size: 20 })}
-                      <span class="val" style="font-weight: 700;">${post.author_level || 1}</span>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <img src="/assets/awards/level_shield.jpg" alt="LVL" class="stat-level-mini-img" />
+                      <span class="val" style="color: #FF334B; font-weight: 800; font-size: 13.5px;">${post.author_level || 1} LVL</span>
                     </div>
                   </div>
                   <div class="stat-row">
@@ -226,8 +238,8 @@ export function renderThreadView(data) {
                   </div>
                 </div>
 
-                <!-- Mini Awards Shelf -->
-                ${renderMiniAwards(post.author_awards, 4)}
+                <!-- Mini Awards Shelf (with 3D rendered medals) -->
+                ${renderMiniAwards(post.author_awards, 5)}
 
                 ${user && user.id !== post.author_id ? `
                   <button type="button" class="btn-author-pm btn-start-pm-with-user" data-user-id="${post.author_id}" data-username="${post.author_name}" title="Написать личное сообщение">

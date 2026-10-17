@@ -4,7 +4,7 @@ import { ICONS, getIcon } from '../utils/icons.js';
 import { api, authStorage } from '../api/client.js';
 import { playSound } from '../utils/sound.js';
 import { router } from '../router.js';
-import { renderLevelShield, getAwardSvg } from '../utils/awards.js';
+import { renderLevelShield, getAwardSvg, getAwardImage } from '../utils/awards.js';
 
 export async function openModal(name, context = null) {
   state.activeModal = name;
@@ -984,10 +984,8 @@ export function renderModal() {
                 ${awards.map(a => `
                   <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; background: #0E121C; border: 1px solid ${a.is_unlocked ? '#FF1F36' : '#1A2130'}; border-radius: 8px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                      <div style="width: 28px; height: 28px; border-radius: 6px; background: rgba(255,31,54,0.12); color: #FF334B; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                        <svg viewBox="0 0 24 24" style="width: 16px; height: 16px;">
-                          ${getAwardSvg(a.icon_key)}
-                        </svg>
+                      <div style="width: 32px; height: 32px; border-radius: 6px; overflow: hidden; flex-shrink: 0; border: 1px solid rgba(255,31,54,0.3); background: #000;">
+                        <img src="${getAwardImage(a)}" alt="${a.title}" style="width: 100%; height: 100%; object-fit: cover;" />
                       </div>
                       <div>
                         <div style="font-size: 12px; font-weight: 700; color: #FFF;">

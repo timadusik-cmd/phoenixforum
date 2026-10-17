@@ -8991,45 +8991,209 @@ input, textarea, select {
   font-weight: 600;
 }
 
-/* 4. Mini Awards Shelf on Post Author Sidebar */
+/* 4. Prominent Author Level Showcase & Mini Awards Rack */
+.author-level-rank-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin: 6px 0 10px 0;
+  background: linear-gradient(135deg, rgba(255, 31, 54, 0.16) 0%, rgba(14, 18, 28, 0.95) 100%);
+  border: 1px solid rgba(255, 31, 54, 0.45);
+  border-radius: 8px;
+  box-shadow: 0 0 16px rgba(255, 31, 54, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.author-level-rank-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #FF1F36, #FF9100);
+}
+
+.author-level-shield-box {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1.5px solid rgba(255, 31, 54, 0.6);
+  box-shadow: 0 0 10px rgba(255, 31, 54, 0.4);
+}
+
+.author-level-3d-shield {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.author-level-number-tag {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: #FF1F36;
+  color: #FFFFFF;
+  font-size: 9px;
+  font-weight: 900;
+  padding: 1px 4px;
+  border-top-left-radius: 4px;
+  line-height: 1;
+}
+
+.author-level-text-col {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.author-level-sup-title {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #8A96A6;
+  letter-spacing: 0.6px;
+}
+
+.author-level-rank-name {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 8px rgba(255, 31, 54, 0.5);
+}
+
+.stat-level-mini-img {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 31, 54, 0.5);
+  box-shadow: 0 0 6px rgba(255, 31, 54, 0.35);
+  flex-shrink: 0;
+}
+
+/* 4.1 Mini Awards Shelf on Post Author Sidebar (3D Medals) */
 .author-mini-awards-rack {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-top: 8px;
-  padding: 6px;
-  background: rgba(14, 18, 27, 0.7);
-  border: 1px solid #1C2333;
-  border-radius: 6px;
+  margin-top: 10px;
+  padding: 8px;
+  background: rgba(11, 14, 22, 0.85);
+  border: 1px solid rgba(255, 31, 54, 0.25);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
 .mini-award-item {
-  width: 26px;
-  height: 26px;
-  border-radius: 5px;
-  background: rgba(255, 31, 54, 0.1);
-  border: 1px solid rgba(255, 31, 54, 0.3);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #000000;
+  border: 2px solid rgba(255, 31, 54, 0.55);
+  box-shadow: 0 0 12px rgba(255, 31, 54, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #FF334B;
-  transition: all 0.2s ease;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   cursor: pointer;
   position: relative;
+  flex-shrink: 0;
 }
 
 .mini-award-item:hover {
-  transform: scale(1.2);
+  transform: scale(1.3) translateY(-2px);
   border-color: #FF1F36;
-  box-shadow: 0 0 10px rgba(255, 31, 54, 0.4);
-  z-index: 5;
+  box-shadow: 0 0 20px rgba(255, 31, 54, 0.75);
+  z-index: 10;
 }
 
-.mini-award-item svg {
-  width: 15px;
-  height: 15px;
+.mini-award-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+.mini-award-more {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 31, 54, 0.15);
+  border: 1.5px solid rgba(255, 31, 54, 0.4);
+  color: #FF334B;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mini-award-more:hover {
+  background: #FF1F36;
+  color: #FFFFFF;
+  box-shadow: 0 0 10px rgba(255, 31, 54, 0.6);
+  transform: scale(1.15);
+}
+
+/* 4.2 3D Award Image inside Award Showcase Cards */
+.award-3d-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.award-ref-card:hover .award-3d-img {
+  transform: scale(1.08);
+}
+
+.award-ref-card.locked .award-3d-img {
+  filter: grayscale(1) opacity(0.35) contrast(1.1);
+  transition: filter 0.25s ease, transform 0.3s ease;
+}
+
+.award-ref-card.locked:hover .award-3d-img {
+  filter: grayscale(0.2) opacity(0.85);
+}
+
+.award-ref-card.unlocked .award-glow-circle {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 31, 54, 0.6);
+  box-shadow: 0 0 22px rgba(255, 31, 54, 0.5);
+  overflow: hidden;
+  background: #000000;
+  margin: 6px 0 12px;
+}
+
+.award-ref-card.locked .award-glow-circle {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  background: #06080D;
+  margin: 6px 0 12px;
 }
 
 /* 5. Reputation Controls & Details */
