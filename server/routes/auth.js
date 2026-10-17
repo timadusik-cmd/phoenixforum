@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import db from '../db.js';
-import { generateToken, requireAuth } from '../middleware/auth.js';
+import { generateToken, requireAuth, optionalAuth } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import { getUserBadges } from '../utils/userBadges.js';
 
