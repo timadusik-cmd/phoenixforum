@@ -8991,98 +8991,17 @@ input, textarea, select {
   font-weight: 600;
 }
 
-/* 4. Prominent Author Level Showcase & Mini Awards Rack */
-.author-level-rank-card {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  margin: 6px 0 10px 0;
-  background: linear-gradient(135deg, rgba(255, 31, 54, 0.16) 0%, rgba(14, 18, 28, 0.95) 100%);
-  border: 1px solid rgba(255, 31, 54, 0.45);
-  border-radius: 8px;
-  box-shadow: 0 0 16px rgba(255, 31, 54, 0.25);
-  position: relative;
-  overflow: hidden;
-}
-
-.author-level-rank-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 3px;
-  background: linear-gradient(180deg, #FF1F36, #FF9100);
-}
-
-.author-level-shield-box {
-  position: relative;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1.5px solid rgba(255, 31, 54, 0.6);
-  box-shadow: 0 0 10px rgba(255, 31, 54, 0.4);
-}
-
-.author-level-3d-shield {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.author-level-number-tag {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  background: #FF1F36;
-  color: #FFFFFF;
-  font-size: 9px;
-  font-weight: 900;
-  padding: 1px 4px;
-  border-top-left-radius: 4px;
-  line-height: 1;
-}
-
-.author-level-text-col {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.author-level-sup-title {
-  font-size: 9.5px;
-  font-weight: 700;
-  color: #8A96A6;
-  letter-spacing: 0.6px;
-}
-
-.author-level-rank-name {
-  font-size: 11.5px;
-  font-weight: 800;
-  color: #FFFFFF;
-  letter-spacing: 0.4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-shadow: 0 0 8px rgba(255, 31, 54, 0.5);
-}
-
 .stat-level-mini-img {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 4px;
   object-fit: cover;
-  border: 1px solid rgba(255, 31, 54, 0.5);
-  box-shadow: 0 0 6px rgba(255, 31, 54, 0.35);
+  border: none;
+  box-shadow: none;
   flex-shrink: 0;
 }
 
-/* 4.1 Mini Awards Shelf on Post Author Sidebar (3D Medals) */
+/* 4. Mini Awards Shelf on Post Author Sidebar (Clean borderless 3D Medals) */
 .author-mini-awards-rack {
   display: flex;
   align-items: center;
@@ -9090,35 +9009,32 @@ input, textarea, select {
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 10px;
-  padding: 8px;
-  background: rgba(11, 14, 22, 0.85);
-  border: 1px solid rgba(255, 31, 54, 0.25);
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  padding: 2px 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .mini-award-item {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #000000;
-  border: 2px solid rgba(255, 31, 54, 0.55);
-  box-shadow: 0 0 12px rgba(255, 31, 54, 0.35);
+  background: transparent;
+  border: none;
+  box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: transform 0.2s ease;
   cursor: pointer;
   position: relative;
   flex-shrink: 0;
 }
 
 .mini-award-item:hover {
-  transform: scale(1.3) translateY(-2px);
-  border-color: #FF1F36;
-  box-shadow: 0 0 20px rgba(255, 31, 54, 0.75);
-  z-index: 10;
+  transform: scale(1.2);
+  z-index: 5;
 }
 
 .mini-award-img {
@@ -9130,14 +9046,14 @@ input, textarea, select {
 }
 
 .mini-award-more {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  background: rgba(255, 31, 54, 0.15);
-  border: 1.5px solid rgba(255, 31, 54, 0.4);
-  color: #FF334B;
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: #CBD5E1;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -9146,10 +9062,9 @@ input, textarea, select {
 }
 
 .mini-award-more:hover {
-  background: #FF1F36;
+  background: rgba(255, 255, 255, 0.16);
   color: #FFFFFF;
-  box-shadow: 0 0 10px rgba(255, 31, 54, 0.6);
-  transform: scale(1.15);
+  transform: scale(1.1);
 }
 
 /* 4.2 3D Award Image inside Award Showcase Cards */
@@ -9179,10 +9094,10 @@ input, textarea, select {
   width: 76px;
   height: 76px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 31, 54, 0.6);
-  box-shadow: 0 0 22px rgba(255, 31, 54, 0.5);
+  border: none;
+  box-shadow: none;
   overflow: hidden;
-  background: #000000;
+  background: transparent;
   margin: 6px 0 12px;
 }
 
@@ -9190,9 +9105,10 @@ input, textarea, select {
   width: 76px;
   height: 76px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: none;
+  box-shadow: none;
   overflow: hidden;
-  background: #06080D;
+  background: transparent;
   margin: 6px 0 12px;
 }
 

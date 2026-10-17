@@ -199,24 +199,12 @@ export function renderThreadView(data) {
                   ${renderUserBadges(post, { size: 'sidebar' })}
                 </div>
 
-                <!-- Prominent Author Level Showcase -->
-                <div class="author-level-rank-card" title="Уровень форума: ${post.author_level || 1} • ${getRankTitle(post.author_level || 1)}">
-                  <div class="author-level-shield-box">
-                    <img src="/assets/awards/level_shield.jpg" alt="LVL" class="author-level-3d-shield" />
-                    <span class="author-level-number-tag">${post.author_level || 1}</span>
-                  </div>
-                  <div class="author-level-text-col">
-                    <span class="author-level-sup-title">УРОВЕНЬ ФОРУМА</span>
-                    <span class="author-level-rank-name">${getRankTitle(post.author_level || 1)}</span>
-                  </div>
-                </div>
-
                 <div class="post-author-stats">
-                  <div class="stat-row highlight-level-stat">
+                  <div class="stat-row">
                     <span class="lbl">Уровень:</span>
                     <div style="display: flex; align-items: center; gap: 6px;">
                       <img src="/assets/awards/level_shield.jpg" alt="LVL" class="stat-level-mini-img" />
-                      <span class="val" style="color: #FF334B; font-weight: 800; font-size: 13.5px;">${post.author_level || 1} LVL</span>
+                      <span class="val" style="font-weight: 700;">${post.author_level || 1}</span>
                     </div>
                   </div>
                   <div class="stat-row">
