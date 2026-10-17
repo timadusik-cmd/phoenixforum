@@ -5,34 +5,94 @@ import { renderRichEditor } from '../components/RichEditor.js';
 import { renderRoleBadge, renderUserBadges } from '../utils/badges.js';
 import { formatTimeAgo } from '../utils/time.js';
 
-// Simple Markdown parser for post content
+// Rich Markdown & BBCode parser for post content
 export function formatPostContent(rawText) {
   if (!rawText) return '';
-  let text = rawText
+  let text = String(rawText)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-  // Markdown images: ![alt](url)
-  text = text.replace(/!\[(.*?)\]\((.*?)\)/g, '<div class="post-img-wrap"><img src="$2" alt="$1" class="post-attachment-img" /></div>');
+  // 1. Code blocks: ```code``` (protect from inner markdown processing)
+  const codeBlocks = [];
+  text = text.replace(/```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g, (match, lang, code) => {
+    const idx = codeBlocks.length;
+    codeBlocks.push(`<pre class="post-code-block"><div class="code-block-header"><span>${lang || 'CODE'}</span></div><code>${code.trim()}</code></pre>`);
+    return `__CODE_BLOCK_${idx}__`;
+  });
 
-  // Markdown links: [text](url)
-  text = text.replace(/\[(.*?)\]\((https?:\/\/.*?)\)/g, '<a href="$2" target="_blank" rel="noopener" class="post-link">$1</a>');
+  // 2. Inline code: `code`
+  const inlineCodes = [];
+  text = text.replace(/`([^`\n]+)`/g, (match, code) => {
+    const idx = inlineCodes.length;
+    inlineCodes.push(`<code class="post-inline-code">${code}</code>`);
+    return `__INLINE_CODE_${idx}__`;
+  });
 
-  // Bold: **text**
+  // 3. Spoilers: [spoiler=Title]content[/spoiler] or [spoiler]content[/spoiler]
+  text = text.replace(/\[spoiler=(.*?)\]([\s\S]*?)\[\/spoiler\]/gi, (m, title, content) => {
+    return `<details class="post-spoiler"><summary class="post-spoiler-title"><span class="spoiler-icon">▶</span> Спойлер: <strong>${title}</strong></summary><div class="post-spoiler-content">${content}</div></details>`;
+  });
+  text = text.replace(/\[spoiler\]([\s\S]*?)\[\/spoiler\]/gi, (m, content) => {
+    return `<details class="post-spoiler"><summary class="post-spoiler-title"><span class="spoiler-icon">▶</span> Нажмите, чтобы открыть спойлер</summary><div class="post-spoiler-content">${content}</div></details>`;
+  });
+
+  // 4. Video embeds: [video](url) or [video]url[/video]
+  text = text.replace(/\[video\]\s*(https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]+)(?:[^\s]*)?)\s*\[\/video\]/gi, (m, fullUrl, id) => {
+    return `<div class="post-video-wrap"><iframe src="https://www.youtube.com/embed/${id}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+  });
+
+  // 5. Images: ![alt](url)
+  text = text.replace(/!\[(.*?)\]\((https?:\/\/.*?|\/uploads\/.*?)\)/g, '<div class="post-img-wrap"><img src="$2" alt="$1" class="post-attachment-img" loading="lazy" onclick="window.open(this.src, \'_blank\')" title="Нажмите для открытия в полном размере" /></div>');
+
+  // 6. Links: [text](url)
+  text = text.replace(/\[(.*?)\]\((https?:\/\/.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="post-link">$1</a>');
+
+  // 7. Colors: [color=#hex]text[/color] or [color=red]text[/color]
+  text = text.replace(/\[color=(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)\]([\s\S]*?)\[\/color\]/gi, '<span style="color: $1;">$2</span>');
+
+  // 8. Alignments: [center]text[/center], [right]text[/right]
+  text = text.replace(/\[center\]([\s\S]*?)\[\/center\]/gi, '<div style="text-align: center;">$1</div>');
+  text = text.replace(/\[right\]([\s\S]*?)\[\/right\]/gi, '<div style="text-align: right;">$1</div>');
+
+  // 9. BBCode Underline & Strike
+  text = text.replace(/\[u\]([\s\S]*?)\[\/u\]/gi, '<u>$1</u>');
+  text = text.replace(/\[s\]([\s\S]*?)\[\/s\]/gi, '<del>$1</del>');
+  text = text.replace(/~~(.*?)~~/g, '<del>$1</del>');
+  text = text.replace(/&lt;u&gt;(.*?)&lt;\/u&gt;/gi, '<u>$1</u>');
+
+  // 10. Headers: #, ##, ###
+  text = text.replace(/^###\s+(.*)$/gm, '<h4 class="post-h3">$1</h4>');
+  text = text.replace(/^##\s+(.*)$/gm, '<h3 class="post-h2">$1</h3>');
+  text = text.replace(/^#\s+(.*)$/gm, '<h2 class="post-h1">$1</h2>');
+
+  // 11. Bold & Italic
   text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-  // Italic: *text*
+  text = text.replace(/\[b\]([\s\S]*?)\[\/b\]/gi, '<strong>$1</strong>');
   text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  text = text.replace(/\[i\]([\s\S]*?)\[\/i\]/gi, '<em>$1</em>');
 
-  // Quotes: > text
+  // 12. Quotes: [quote=Author]text[/quote] or [quote]text[/quote] or > text
+  text = text.replace(/\[quote=(.*?)\]([\s\S]*?)\[\/quote\]/gi, '<blockquote class="post-quote"><div class="post-quote-author">Цитата от <strong>$1</strong>:</div><div class="post-quote-body">$2</div></blockquote>');
+  text = text.replace(/\[quote\]([\s\S]*?)\[\/quote\]/gi, '<blockquote class="post-quote"><div class="post-quote-body">$1</div></blockquote>');
   text = text.replace(/^&gt;\s?(.*)$/gm, '<blockquote class="post-quote">$1</blockquote>');
 
-  // Code block: ```code```
-  text = text.replace(/```([\s\S]*?)```/g, '<pre class="post-code-block"><code>$1</code></pre>');
+  // 13. Horizontal divider: ---
+  text = text.replace(/^---$/gm, '<hr class="post-divider" />');
 
-  // Line breaks
+  // 14. Lists: - item or * item
+  text = text.replace(/^[-*]\s+(.*)$/gm, '<li class="post-list-item">$1</li>');
+
+  // 15. Line breaks: \n -> <br />
   text = text.replace(/\n/g, '<br />');
+
+  // 16. Restore code blocks and inline code
+  inlineCodes.forEach((codeHtml, idx) => {
+    text = text.replace(`__INLINE_CODE_${idx}__`, codeHtml);
+  });
+  codeBlocks.forEach((codeHtml, idx) => {
+    text = text.replace(`__CODE_BLOCK_${idx}__`, codeHtml);
+  });
 
   return text;
 }
@@ -278,7 +338,7 @@ export function renderThreadView(data) {
         ` : user ? `
           <div class="quick-reply-card">
             <h3 class="quick-reply-title">Быстрый ответ в тему</h3>
-            <div id="quoted-preview-box" style="display: none; margin-bottom: 12px; padding: 10px; background: #07090D; border-left: 3px solid #FF2338; font-size: 12px; color: #929BAA;"></div>
+            <div id="quoted-preview-box" style="display: none; margin-bottom: 12px; padding: 10px 14px; background: #0E121B; border: 1px solid #1F2739; border-left: 3px solid #0091FF; border-radius: 6px; font-size: 12.5px; color: #929BAA;"></div>
             ${renderRichEditor('reply-content')}
             <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
               <button class="btn-create-topic" id="btn-submit-reply" data-thread-id="${thread.id}">

@@ -577,7 +577,22 @@ function attachGlobalEvents() {
           submitReplyBtn.setAttribute('data-quote-id', postId);
           if (quotePreview) {
             quotePreview.style.display = 'block';
-            quotePreview.innerHTML = `<strong>Цитата от ${author}:</strong> «${content.substring(0, 80)}...»`;
+            quotePreview.innerHTML = `
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  <strong style="color: #0091FF;">Цитата от ${author}:</strong> «<span style="color: #C2C9D6;">${content.substring(0, 100).replace(/\n/g, ' ')}${content.length > 100 ? '...' : ''}</span>»
+                </div>
+                <button type="button" id="btn-cancel-quote" style="background: rgba(255, 31, 54, 0.12); border: 1px solid rgba(255, 31, 54, 0.3); border-radius: 4px; color: #FF4D5E; cursor: pointer; font-size: 11px; padding: 3px 8px; font-weight: 600; flex-shrink: 0;" title="Отменить цитирование">✕ Отменить</button>
+              </div>
+            `;
+            const btnCancelQuote = document.getElementById('btn-cancel-quote');
+            if (btnCancelQuote) {
+              btnCancelQuote.onclick = () => {
+                quotePreview.style.display = 'none';
+                quotePreview.innerHTML = '';
+                submitReplyBtn.removeAttribute('data-quote-id');
+              };
+            }
           }
           replyArea.focus();
           replyArea.scrollIntoView({ behavior: 'smooth' });
