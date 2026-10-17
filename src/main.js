@@ -1367,6 +1367,21 @@ function attachGlobalEvents() {
   });
 }
 
+// Sidebar Accordion Subsections Toggle
+document.addEventListener('click', (e) => {
+  const toggleBtn = e.target.closest('[data-toggle-sub]');
+  if (toggleBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const group = toggleBtn.closest('.sidebar-accordion-group');
+    if (group) {
+      group.classList.toggle('open');
+      const isOpen = group.classList.contains('open');
+      toggleBtn.setAttribute('title', isOpen ? 'Свернуть подразделы' : 'Развернуть подразделы');
+    }
+  }
+});
+
 // -------------------------------------------------------------
 // APP INITIALIZATION
 // -------------------------------------------------------------

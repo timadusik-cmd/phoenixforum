@@ -1,10 +1,81 @@
-// Phoenix RP Forum - Left Sidebar Component
+// Phoenix RP Forum - Left Sidebar Component with Subsections Accordion
 import { state } from '../state.js';
 import { ICONS, getIcon } from '../utils/icons.js';
 
 export function renderSidebarLeft() {
   const currentPath = window.location.pathname;
   const totalThreads = state.categories.reduce((acc, c) => acc + (c.threads_count || 0), 0);
+
+  // Group categories: Separate root categories and subsections
+  const rootCategories = state.categories.filter(c => !c.parent_id);
+  const subCategoriesByParent = {};
+  state.categories.forEach(c => {
+    if (c.parent_id) {
+      if (!subCategoriesByParent[c.parent_id]) subCategoriesByParent[c.parent_id] = [];
+      subCategoriesByParent[c.parent_id].push(c);
+    }
+  });
+
+  const categoriesHtml = rootCategories.map(cat => {
+    const subs = subCategoriesByParent[cat.id] || [];
+    const hasSubs = subs.length > 0;
+    const isDirectActive = currentPath === `/forum/category/${cat.slug}`;
+    const isChildActive = subs.some(s => currentPath === `/forum/category/${s.slug}`);
+    const isGroupActive = isDirectActive || isChildActive;
+    const iconColor = cat.icon_color || '#FF1F36';
+    const iconBg = cat.icon_bg || 'rgba(255, 31, 54, 0.12)';
+    const totalCatThreads = (cat.threads_count || 0) + subs.reduce((sum, s) => sum + (s.threads_count || 0), 0);
+
+    if (hasSubs) {
+      return `
+        <div class="sidebar-accordion-group ${isGroupActive ? 'open' : ''}" data-accordion-group="${cat.id}">
+          <div class="sidebar-menu-row">
+            <a href="/forum/category/${cat.slug}" data-link class="sidebar-menu-item ${isDirectActive ? 'active' : ''}" style="--item-accent: ${iconColor};">
+              <div class="sidebar-menu-item-left">
+                <div class="menu-icon-square" style="color: ${iconColor}; background: ${iconBg};">
+                  ${getIcon(cat.icon)}
+                </div>
+                <span>${cat.title}</span>
+              </div>
+              <span class="menu-badge">${totalCatThreads}</span>
+            </a>
+            <button type="button" class="sidebar-accordion-btn" data-toggle-sub="${cat.id}" title="${isGroupActive ? 'Свернуть подразделы' : 'Развернуть подразделы'}">
+              ${ICONS.chevronDown}
+            </button>
+          </div>
+          <div class="sidebar-accordion-body" id="sub-accordion-${cat.id}">
+            ${subs.map(sub => {
+              const isSubActive = currentPath === `/forum/category/${sub.slug}`;
+              const subColor = sub.icon_color || '#FF1F36';
+              return `
+                <a href="/forum/category/${sub.slug}" data-link class="sidebar-sub-item ${isSubActive ? 'active' : ''}">
+                  <span class="sub-tree-pipe">↳</span>
+                  <div class="sub-item-indicator" style="background: ${subColor}; box-shadow: 0 0 6px ${subColor};"></div>
+                  <span class="sub-item-title">${sub.title}</span>
+                  ${sub.badge_text ? `
+                    <span class="sub-item-badge" style="background: ${sub.badge_color || '#FF1F36'};">${sub.badge_text}</span>
+                  ` : ''}
+                  <span class="sub-item-count">${sub.threads_count || 0}</span>
+                </a>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <a href="/forum/category/${cat.slug}" data-link class="sidebar-menu-item ${isDirectActive ? 'active' : ''}" style="--item-accent: ${iconColor};">
+        <div class="sidebar-menu-item-left">
+          <div class="menu-icon-square" style="color: ${iconColor}; background: ${iconBg};">
+            ${getIcon(cat.icon)}
+          </div>
+          <span>${cat.title}</span>
+        </div>
+        <span class="menu-badge">${cat.threads_count || 0}</span>
+      </a>
+    `;
+  }).join('');
 
   return `
     <aside class="sidebar-left">
@@ -20,22 +91,7 @@ export function renderSidebarLeft() {
           <span class="menu-badge">${totalThreads || 142}</span>
         </a>
 
-        ${state.categories.map(cat => {
-          const isActive = currentPath === `/forum/category/${cat.slug}`;
-          const iconColor = cat.icon_color || '#FF1F36';
-          const iconBg = cat.icon_bg || 'rgba(255, 31, 54, 0.12)';
-          return `
-            <a href="/forum/category/${cat.slug}" data-link class="sidebar-menu-item ${isActive ? 'active' : ''}" style="--item-accent: ${iconColor};">
-              <div class="sidebar-menu-item-left">
-                <div class="menu-icon-square" style="color: ${iconColor}; background: ${iconBg};">
-                  ${getIcon(cat.icon)}
-                </div>
-                <span>${cat.title}</span>
-              </div>
-              <span class="menu-badge">${cat.threads_count || 0}</span>
-            </a>
-          `;
-        }).join('')}
+        ${categoriesHtml}
       </nav>
 
       <!-- Sidebar Promo Card -->

@@ -52,18 +52,8 @@ function renderSectionCard(cat) {
   const titleColor = cat.title_color || '#FFFFFF';
   const descColor = cat.description_color || '#8E95A5';
 
-  const subSectionsHtml = (cat.subSections && cat.subSections.length > 0) ? `
-    <div class="sub-sections-row">
-      <span class="sub-sections-label">↳</span>
-      ${cat.subSections.map(sub => `
-        <a href="/forum/category/${sub.slug}" data-link class="sub-section-chip" style="--sub-color: ${sub.icon_color || '#FF1F36'};">
-          <span class="sub-chip-icon">${getIcon(sub.icon)}</span>
-          <span class="sub-chip-title">${sub.title}</span>
-          ${sub.badge_text ? `<span class="sub-chip-badge" style="background: ${sub.badge_color || '#FF1F36'};">${sub.badge_text}</span>` : ''}
-        </a>
-      `).join('')}
-    </div>
-  ` : '';
+  const subCount = cat.subSections ? cat.subSections.length : 0;
+  const subsLabel = subCount === 1 ? '1 подраздел' : ((subCount >= 2 && subCount <= 4) ? `${subCount} подраздела` : `${subCount} подразделов`);
 
   return `
     <div class="category-card" style="--card-accent: ${iconColor};">
@@ -82,12 +72,18 @@ function renderSectionCard(cat) {
                 ${cat.badge_text}
               </span>
             ` : ''}
+            ${subCount > 0 ? `
+              <a href="/forum/category/${cat.slug}" data-link class="cat-subs-pill" title="Открыть раздел и посмотреть подразделы">
+                <span class="cat-subs-pill-icon">${ICONS.folder}</span>
+                <span>${subsLabel}</span>
+                <span class="cat-subs-pill-arrow">›</span>
+              </a>
+            ` : ''}
             ${cat.is_locked ? `
               <span class="section-locked-icon" title="Раздел только для чтения">${ICONS.lock}</span>
             ` : ''}
           </div>
           <p class="category-desc" style="color: ${descColor};">${cat.description || ''}</p>
-          ${subSectionsHtml}
         </div>
       </div>
 

@@ -128,14 +128,17 @@ export function renderCategoryView(data) {
       ${subSections && subSections.length > 0 ? `
         <div class="category-subsections-block">
           <div class="category-subsections-header">
-            <span class="cat-subs-title">${ICONS.folder} Подразделы</span>
-            <span class="cat-subs-count">${subSections.length}</span>
+            <div class="cat-subs-title-group">
+              <span class="cat-subs-title">${ICONS.folder} Подразделы раздела</span>
+              <span class="cat-subs-count">${subSections.length}</span>
+            </div>
+            <span class="cat-subs-hint">Выберите подраздел для просмотра тем или создания публикации</span>
           </div>
           <div class="category-subsections-grid">
             ${subSections.map(sub => `
               <a href="/forum/category/${sub.slug}" data-link class="category-subsection-card" style="--sub-color: ${sub.icon_color || '#FF1F36'};">
                 <div class="sub-card-left">
-                  <div class="sub-card-icon" style="background: ${sub.icon_bg || 'rgba(255, 31, 54, 0.12)'}; color: ${sub.icon_color || '#FF1F36'};">
+                  <div class="sub-card-icon" style="background: ${sub.icon_bg || 'rgba(255, 31, 54, 0.12)'}; color: ${sub.icon_color || '#FF1F36'}; box-shadow: 0 0 12px ${sub.icon_color || '#FF1F36'}20;">
                     ${getIcon(sub.icon)}
                   </div>
                   <div class="sub-card-text">
@@ -146,12 +149,24 @@ export function renderCategoryView(data) {
                           ${sub.badge_text}
                         </span>
                       ` : ''}
+                      ${sub.is_locked ? `
+                        <span class="section-locked-icon" title="Только для чтения" style="font-size: 11px;">${ICONS.lock}</span>
+                      ` : ''}
                     </div>
                     ${sub.description ? `<p class="sub-card-desc" style="color: ${sub.description_color || '#8E95A5'};">${sub.description}</p>` : ''}
                   </div>
                 </div>
                 <div class="sub-card-stats">
-                  <span class="sub-stat-num">${sub.threads_count || 0} тем</span>
+                  <div class="sub-stat-pills">
+                    <span class="sub-stat-pill" title="Темы">
+                      ${ICONS.chatBubble}
+                      <span>${sub.threads_count || 0}</span>
+                    </span>
+                    <span class="sub-stat-pill" title="Сообщения">
+                      ${ICONS.docText}
+                      <span>${sub.posts_count || 0}</span>
+                    </span>
+                  </div>
                   <span class="sub-card-arrow">›</span>
                 </div>
               </a>
