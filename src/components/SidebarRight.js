@@ -144,11 +144,11 @@ export function renderSidebarRight() {
       let priority = 1;
       const lowerTitle = title.toLowerCase();
       if (key === 'superadmin' || lowerTitle.includes('главный')) priority = 50;
-      else if (key === 'developer' || lowerTitle.includes('разработчик')) priority = 45;
+      else if (key === 'owner' || lowerTitle.includes('owner') || lowerTitle.includes('руковод')) priority = 48;
+      else if (key === 'developer' || lowerTitle.includes('разработчик') || lowerTitle.includes('команда проекта')) priority = 45;
       else if (key === 'admin' || lowerTitle.includes('администратор')) priority = 40;
       else if (key === 'moderator' || lowerTitle.includes('модератор')) priority = 30;
-      else if (key === 'helper' || lowerTitle.includes('хелпер')) priority = 20;
-      else if ((cfg.level && cfg.level >= 2) || (b.level && b.level >= 2)) priority = 15;
+      else if ((cfg.level && cfg.level >= 4) || (b.level && b.level >= 4)) priority = 35;
       else priority = 5;
 
       return {
@@ -178,7 +178,7 @@ export function renderSidebarRight() {
     };
   }
 
-  // 1. Staff Online Widget
+  // 1. Staff Online Widget (Только ранги от Модератора и выше)
   const stats = state.onlineStats || {
     staffOnline: [],
     usersOnline: [],
@@ -188,7 +188,26 @@ export function renderSidebarRight() {
     recordOnline: 142
   };
 
-  const staff = (stats.staffOnline && stats.staffOnline.length > 0) ? stats.staffOnline : [];
+  const rawStaff = (stats.staffOnline && stats.staffOnline.length > 0) ? stats.staffOnline : [];
+  const staff = rawStaff.filter(s => {
+    // Только роли от Модератора и выше
+    const role = String(s.role || '').toLowerCase();
+    if (['superadmin', 'admin', 'moderator'].includes(role)) return true;
+
+    // Либо плашки руководства/администрации проекта
+    const badges = s.badges || [];
+    const staffKeywords = ['модератор', 'администратор', 'руковод', 'owner', 'создатель', 'команда проекта', 'разработчик', 'founder', 'куратор'];
+    const staffKeys = ['superadmin', 'admin', 'moderator', 'owner', 'developer', 'dev', 'management', 'team'];
+
+    return badges.some(b => {
+      const key = String(b.key || '').toLowerCase();
+      const title = String(b.title || '').toLowerCase();
+      if (staffKeys.includes(key)) return true;
+      if (staffKeywords.some(kw => title.includes(kw))) return true;
+      if (b.level && b.level >= 4) return true;
+      return false;
+    });
+  });
   let staffListHtml = '';
   if (staff.length > 0) {
     staffListHtml = staff.map(s => {

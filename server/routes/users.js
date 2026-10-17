@@ -82,32 +82,41 @@ router.get('/', (req, res) => {
 // GET Online Users & Staff
 router.get('/stats/online', (req, res) => {
   try {
-    const staff = db.prepare(`
+    const rawStaff = db.prepare(`
       SELECT id, username, character_name, avatar, role, role_color, role_badge, status, level
       FROM users
-      WHERE status = 'online' AND (
-        role IN ('superadmin', 'admin', 'moderator', 'helper')
-        OR id IN (
-          SELECT user_id FROM user_badges ub 
-          JOIN custom_badges cb ON ub.badge_key = cb.key 
-          WHERE cb.level >= 2
-        )
-      )
+      WHERE status = 'online'
       ORDER BY 
         CASE role 
           WHEN 'superadmin' THEN 1 
           WHEN 'admin' THEN 2 
           WHEN 'moderator' THEN 3 
-          WHEN 'helper' THEN 4 
           ELSE 5 
         END ASC,
         username ASC
     `).all();
 
-    const staffWithBadges = staff.map(u => ({
-      ...u,
-      badges: getUserBadges(u.id, u)
-    }));
+    const staffWithBadges = rawStaff
+      .map(u => ({
+        ...u,
+        badges: getUserBadges(u.id, u)
+      }))
+      .filter(u => {
+        // Only ranks from Moderator and above
+        if (['superadmin', 'admin', 'moderator'].includes(u.role)) return true;
+
+        const staffKeywords = ['модератор', 'администратор', 'руковод', 'owner', 'создатель', 'команда проекта', 'разработчик', 'founder', 'куратор'];
+        const staffKeys = ['superadmin', 'admin', 'moderator', 'owner', 'developer', 'dev', 'management', 'team'];
+
+        return (u.badges || []).some(b => {
+          const key = String(b.key || '').toLowerCase();
+          const title = String(b.title || '').toLowerCase();
+          if (staffKeys.includes(key)) return true;
+          if (staffKeywords.some(kw => title.includes(kw))) return true;
+          if (b.level && b.level >= 4) return true;
+          return false;
+        });
+      });
 
     const allOnline = db.prepare(`
       SELECT id, username, character_name, avatar, role, role_color, role_badge, status, level
