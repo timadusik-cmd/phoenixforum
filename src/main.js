@@ -4,7 +4,6 @@ import { state, subscribe, notifyStateChange } from './state.js';
 import { api, authStorage } from './api/client.js';
 import { router } from './router.js';
 import { renderHeader } from './components/Header.js';
-import { renderSidebarLeft } from './components/SidebarLeft.js';
 import { renderSidebarRight } from './components/SidebarRight.js';
 import { openModal, closeModal, renderModal } from './components/Modal.js';
 import { attachRichEditorEvents } from './components/RichEditor.js';
@@ -70,7 +69,6 @@ function renderAppShell(contentHtml, options = {}) {
         </div>
       ` : ''}
       <div class="forum-layout">
-        ${renderSidebarLeft()}
         <main id="main-area">
           ${contentHtml}
         </main>
