@@ -1035,8 +1035,8 @@ input, textarea, select {
   height: 44px;
   min-width: 44px;
   min-height: 44px;
-  background: rgba(229, 32, 53, 0.08);
-  border: 1px solid rgba(229, 32, 53, 0.35);
+  background: rgba(255, 255, 255, 0.04);
+  border: none;
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -7370,7 +7370,6 @@ input, textarea, select {
   padding: 14px 20px;
   background: linear-gradient(90deg, rgba(20, 26, 38, 0.95), rgba(12, 15, 22, 0.8));
   border-bottom: 1px solid #1C2333;
-  border-top: 2px solid var(--fcat-color, #FF1F36);
   flex-wrap: wrap;
   gap: 10px;
 }
@@ -7383,10 +7382,7 @@ input, textarea, select {
 }
 
 .fcat-accent-bar {
-  width: 4px;
-  height: 20px;
-  border-radius: 2px;
-  box-shadow: 0 0 10px var(--fcat-color, #FF1F36);
+  display: none !important;
 }
 
 .fcat-icon {

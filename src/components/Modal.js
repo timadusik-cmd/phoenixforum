@@ -598,7 +598,7 @@ export function renderModal() {
               <div class="admin-section-live-preview">
                 <div class="category-card" id="preview-section-card" style="margin: 0; background: #0B0E14; border: 1px solid #1E2535;">
                   <div class="category-main-col">
-                    <div class="category-icon-box" id="preview-sec-icon-box" style="background: ${defaultIconBg}; color: ${defaultIconColor}; box-shadow: 0 0 10px ${defaultIconColor}25;">
+                    <div class="category-icon-box" id="preview-sec-icon-box" style="background: ${defaultIconBg}; color: ${defaultIconColor};">
                       ${getIcon(defaultIcon)}
                     </div>
                     <div class="category-info">

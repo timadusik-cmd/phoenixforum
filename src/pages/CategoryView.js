@@ -143,7 +143,7 @@ export function renderCategoryView(data) {
             ${subSections.map(sub => `
               <a href="/forum/category/${sub.slug}" data-link class="category-subsection-card" style="--sub-color: ${sub.icon_color || '#FF1F36'};">
                 <div class="sub-card-left">
-                  <div class="sub-card-icon" style="background: ${sub.icon_bg || 'rgba(255, 31, 54, 0.12)'}; color: ${sub.icon_color || '#FF1F36'}; box-shadow: 0 0 12px ${sub.icon_color || '#FF1F36'}20;">
+                  <div class="sub-card-icon" style="background: ${sub.icon_bg || 'rgba(255, 31, 54, 0.12)'}; color: ${sub.icon_color || '#FF1F36'};">
                     ${getIcon(sub.icon)}
                   </div>
                   <div class="sub-card-text">

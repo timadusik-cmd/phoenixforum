@@ -59,7 +59,7 @@ function renderSectionCard(cat) {
     <div class="category-card" style="--card-accent: ${iconColor};">
       <!-- Left: Icon & Info -->
       <div class="category-main-col">
-        <div class="category-icon-box" style="background: ${iconBg}; color: ${iconColor}; box-shadow: 0 0 12px ${iconColor}25;">
+        <div class="category-icon-box" style="background: ${iconBg}; color: ${iconColor};">
           ${getIcon(cat.icon)}
         </div>
         <div class="category-info">
@@ -148,7 +148,6 @@ export function renderHomeForum() {
             <div class="forum-category-block" id="block-${fc.id}" style="--fcat-color: ${fc.color || '#FF1F36'};">
               <div class="forum-category-header">
                 <div class="fcat-header-left">
-                  <span class="fcat-accent-bar" style="background: ${fc.color || '#FF1F36'};"></span>
                   <span class="fcat-icon" style="color: ${fc.color || '#FF1F36'};">${getIcon(fc.icon)}</span>
                   <h3 class="fcat-title">${fc.title}</h3>
                   ${fc.description ? `<span class="fcat-desc">${fc.description}</span>` : ''}
