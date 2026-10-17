@@ -1623,8 +1623,8 @@ input, textarea, select {
 .staff-online-card {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
+  gap: 10px;
+  padding: 7px 10px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.04);
@@ -1645,8 +1645,8 @@ input, textarea, select {
 
 .staff-avatar-box {
   position: relative;
-  width: 38px;
-  height: 38px;
+  width: 35px;
+  height: 35px;
   flex-shrink: 0;
 }
 
@@ -1663,18 +1663,18 @@ input, textarea, select {
   position: absolute;
   bottom: -1px;
   right: -1px;
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: #00E676;
-  border: 2px solid #0D0E15;
+  border: 1.5px solid #0D0E15;
   box-shadow: 0 0 6px #00E676;
 }
 
 .staff-details {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2.5px;
   overflow: hidden;
   flex: 1;
   min-width: 0;
@@ -1688,7 +1688,7 @@ input, textarea, select {
 }
 
 .staff-nick {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
@@ -1698,9 +1698,9 @@ input, textarea, select {
 }
 
 .staff-pill-more {
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 700;
-  padding: 1px 5px;
+  padding: 1px 4.5px;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.06);
   color: #8E92A4;
@@ -1713,8 +1713,8 @@ input, textarea, select {
 .staff-role-pill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 2.5px 7px;
+  gap: 4px;
+  padding: 2px 6px;
   border-radius: 4px;
   background: color-mix(in srgb, var(--pill-color, #FF1F36) 12%, rgba(13, 15, 23, 0.95));
   border: 1px solid color-mix(in srgb, var(--pill-color, #FF1F36) 35%, transparent);
@@ -1728,8 +1728,8 @@ input, textarea, select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   color: var(--pill-color, #FF1F36);
   flex-shrink: 0;
 }
@@ -1741,10 +1741,10 @@ input, textarea, select {
 
 .staff-pill-text {
   font-family: 'Rajdhani', 'Montserrat', -apple-system, sans-serif;
-  font-size: 10px;
+  font-size: 8.8px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.1px;
   color: var(--pill-color, #FF1F36);
   white-space: nowrap;
   overflow: hidden;
