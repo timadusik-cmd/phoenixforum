@@ -1,8 +1,12 @@
 // Phoenix RP Forum - Category View Page
+import { state } from '../state.js';
 import { ICONS, getIcon } from '../utils/icons.js';
 
 export function renderCategoryView(data) {
   const { category, parentCategory, subSections, threads, pagination, currentFilter = 'all' } = data;
+
+  const isAdmin = state.user && ['admin', 'superadmin'].includes(state.user.role);
+  const canCreate = !category.is_locked || isAdmin;
 
   const iconColor = category.icon_color || '#FF1F36';
   const iconBg = category.icon_bg || 'rgba(255, 31, 54, 0.12)';
@@ -64,11 +68,11 @@ export function renderCategoryView(data) {
       <div class="empty-threads-card">
         <div class="empty-icon">${ICONS['message-square']}</div>
         <h3>В этом разделе пока нет тем</h3>
-        <p>${category.is_locked ? 'В данном разделе создание новых тем отключено администрацией.' : 'Станьте первым, кто опубликует вопрос, предложение или важную информацию!'}</p>
-        ${!category.is_locked ? `
-          <a href="/forum/create?category=${category.slug}" data-link class="btn-create-topic" style="margin-top: 12px; display: inline-flex;">
+        <p>${category.is_locked ? 'В данном подразделе создание новых тем отключено (только для чтения).' + (isAdmin ? ' Как Администратор форума, вы можете опубликовать здесь тему.' : '') : 'Станьте первым, кто опубликует вопрос, предложение или важную информацию!'}</p>
+        ${canCreate ? `
+          <a href="/forum/create?category=${encodeURIComponent(category.slug || category.id)}" data-link class="btn-create-topic" style="margin-top: 12px; display: inline-flex;">
             ${ICONS.pencil}
-            <span>Создать первую тему</span>
+            <span>Создать ${category.is_locked ? 'тему (Админ)' : 'первую тему'}</span>
           </a>
         ` : ''}
       </div>
@@ -111,13 +115,14 @@ export function renderCategoryView(data) {
           </div>
           <p class="cat-header-desc" style="color: ${descColor};">${category.description || ''}</p>
         </div>
-        ${!category.is_locked ? `
-          <a href="/forum/create?category=${category.slug}" data-link class="btn-create-topic">
+        ${canCreate ? `
+          <a href="/forum/create?category=${encodeURIComponent(category.slug || category.id)}" data-link class="btn-create-topic">
             ${ICONS.pencil}
             <span>Создать тему</span>
+            ${category.is_locked ? '<span style="font-size: 10px; background: rgba(255,255,255,0.22); padding: 1px 6px; border-radius: 4px; margin-left: 6px; letter-spacing: 0.5px;">АДМИН</span>' : ''}
           </a>
         ` : `
-          <div class="btn-create-topic locked" style="opacity: 0.6; cursor: not-allowed; background: #1A202C; pointer-events: none;">
+          <div class="btn-create-topic locked" title="Раздел закрыт (только для чтения). Публикация доступна только Администраторам." style="opacity: 0.6; cursor: not-allowed; background: #1A202C;">
             ${ICONS.lock}
             <span>Раздел закрыт</span>
           </div>

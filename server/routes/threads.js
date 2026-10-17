@@ -150,6 +150,17 @@ router.post('/', requireAuth, (req, res) => {
       return res.status(404).json({ error: 'Выбранный раздел форума не существует.' });
     }
 
+    // Check if category or subsection is locked (read-only):
+    // Only Administrators and Superadministrators can create threads in locked sections!
+    if (category.is_locked) {
+      const isStaffAdmin = req.user && ['admin', 'superadmin'].includes(req.user.role);
+      if (!isStaffAdmin) {
+        return res.status(403).json({
+          error: 'Данный раздел закрыт администрацией (только для чтения). Публикация тем в нём доступна только Администраторам форума.'
+        });
+      }
+    }
+
     // Check category posting permission
     if (category.min_role_to_post && !hasPermission(req.user.role, category.min_role_to_post)) {
       return res.status(403).json({ error: `В этот раздел могут публиковать только пользователи с рангом ${category.min_role_to_post} и выше.` });

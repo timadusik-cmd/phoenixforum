@@ -37,7 +37,8 @@ export class Router {
   }
 
   navigate(path) {
-    if (window.location.pathname !== path) {
+    const currentFull = window.location.pathname + window.location.search;
+    if (currentFull !== path) {
       window.history.pushState(null, '', path);
     }
     this.resolve();

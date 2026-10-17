@@ -133,6 +133,13 @@ router.addRoute('/forum/create', async (params, query) => {
     router.navigate('/forum');
     return;
   }
+  if (!state.categories || state.categories.length === 0 || !state.forumCategories || state.forumCategories.length === 0) {
+    try {
+      const catsRes = await api.categories.getAll();
+      state.categories = catsRes.categories || [];
+      state.forumCategories = catsRes.forumCategories || [];
+    } catch {}
+  }
   renderAppShell(renderCreateThread(query.category || null));
   attachRichEditorEvents('thread-content');
 });
