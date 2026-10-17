@@ -4,10 +4,9 @@ import { ICONS, getIcon } from '../utils/icons.js';
 
 export function renderSidebarLeft() {
   const currentPath = window.location.pathname;
-  const totalThreads = state.categories.reduce((acc, c) => acc + (c.threads_count || 0), 0);
-
   // Group categories: Separate root categories and subsections
   const rootCategories = state.categories.filter(c => !c.parent_id);
+  const totalThreads = rootCategories.reduce((acc, c) => acc + (c.threads_count || 0), 0);
   const subCategoriesByParent = {};
   state.categories.forEach(c => {
     if (c.parent_id) {
@@ -24,7 +23,7 @@ export function renderSidebarLeft() {
     const isGroupActive = isDirectActive || isChildActive;
     const iconColor = cat.icon_color || '#FF1F36';
     const iconBg = cat.icon_bg || 'rgba(255, 31, 54, 0.12)';
-    const totalCatThreads = (cat.threads_count || 0) + subs.reduce((sum, s) => sum + (s.threads_count || 0), 0);
+    const totalCatThreads = cat.threads_count || 0;
 
     if (hasSubs) {
       return `
@@ -88,7 +87,7 @@ export function renderSidebarLeft() {
             </div>
             <span>Все разделы</span>
           </div>
-          <span class="menu-badge">${totalThreads || 142}</span>
+          <span class="menu-badge">${typeof totalThreads === 'number' ? totalThreads : 0}</span>
         </a>
 
         ${categoriesHtml}

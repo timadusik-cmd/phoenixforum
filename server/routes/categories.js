@@ -66,8 +66,28 @@ router.get('/', (req, res) => {
       }
     });
 
+    // Aggregate thread counts, post counts, and latest message for parent sections from all their subsections
     topLevelSections.forEach(sec => {
-      sec.subSections = subSectionsByParent[sec.id] || [];
+      const subs = subSectionsByParent[sec.id] || [];
+      sec.subSections = subs;
+
+      let aggThreads = sec.threads_count || 0;
+      let aggPosts = sec.posts_count || 0;
+      let newestMsg = sec.lastMessage;
+
+      subs.forEach(sub => {
+        aggThreads += (sub.threads_count || 0);
+        aggPosts += (sub.posts_count || 0);
+        if (sub.lastMessage) {
+          if (!newestMsg || new Date(sub.lastMessage.createdAt) > new Date(newestMsg.createdAt)) {
+            newestMsg = sub.lastMessage;
+          }
+        }
+      });
+
+      sec.threads_count = aggThreads;
+      sec.posts_count = aggPosts;
+      sec.lastMessage = newestMsg;
     });
 
     // Group top-level sections into forum categories
