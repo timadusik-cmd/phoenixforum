@@ -1623,25 +1623,30 @@ input, textarea, select {
 .staff-online-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: 12px;
+  padding: 8px 12px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.04);
+  border-left: 2.5px solid var(--staff-color, #FF1F36);
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
 }
 
 .staff-online-card:hover {
-  background: rgba(255, 31, 54, 0.06);
-  border-color: rgba(255, 31, 54, 0.2);
-  transform: translateX(2px);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+  border-left-color: var(--staff-color, #FF1F36);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 12px color-mix(in srgb, var(--staff-color, #FF1F36) 20%, transparent);
+  transform: translateX(3px);
 }
 
 .staff-avatar-box {
   position: relative;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   flex-shrink: 0;
 }
 
@@ -1650,18 +1655,19 @@ input, textarea, select {
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
-  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border: 1.5px solid var(--staff-color, rgba(255, 255, 255, 0.15));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--staff-color, #FF1F36) 25%, transparent);
 }
 
 .staff-pulse-dot {
   position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 8px;
-  height: 8px;
+  bottom: -1px;
+  right: -1px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: #00E676;
-  border: 1.5px solid #0D0E15;
+  border: 2px solid #0D0E15;
   box-shadow: 0 0 6px #00E676;
 }
 
@@ -1671,27 +1677,79 @@ input, textarea, select {
   gap: 3px;
   overflow: hidden;
   flex: 1;
+  min-width: 0;
 }
 
 .staff-nick-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
 }
 
 .staff-nick {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: 0.2px;
 }
 
-.staff-badge-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+.staff-pill-more {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #8E92A4;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  letter-spacing: 0.2px;
+  flex-shrink: 0;
+  cursor: help;
+}
+
+.staff-role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2.5px 7px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--pill-color, #FF1F36) 12%, rgba(13, 15, 23, 0.95));
+  border: 1px solid color-mix(in srgb, var(--pill-color, #FF1F36) 35%, transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--pill-color, #FF1F36) 15%, transparent);
+  max-width: 100%;
+  box-sizing: border-box;
+  align-self: flex-start;
+}
+
+.staff-pill-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  color: var(--pill-color, #FF1F36);
+  flex-shrink: 0;
+}
+
+.staff-pill-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.staff-pill-text {
+  font-family: 'Rajdhani', 'Montserrat', -apple-system, sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--pill-color, #FF1F36);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.1;
 }
 
 .sidebar-online-empty {
@@ -1753,10 +1811,10 @@ input, textarea, select {
 .online-user-tag {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.03);
+  gap: 6px;
+  padding: 3.5px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.025);
   border: 1px solid rgba(255, 255, 255, 0.06);
   font-size: 12px;
   text-decoration: none;
@@ -1764,9 +1822,10 @@ input, textarea, select {
 }
 
 .online-user-tag:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: color-mix(in srgb, var(--user-color, #FF8A00) 12%, rgba(255, 255, 255, 0.04));
+  border-color: color-mix(in srgb, var(--user-color, #FF8A00) 40%, transparent);
   transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .user-tag-dot {
@@ -5258,6 +5317,9 @@ input, textarea, select {
 
 /* Compact version for widgets */
 .rp-role-badge.badge-compact {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   min-height: 38px;
   padding: 4px 8px 4px 5px;
   border-radius: 8px;
@@ -5265,6 +5327,7 @@ input, textarea, select {
 
 .rp-role-badge.badge-compact .badge-emblem-wrap {
   margin-right: 6px;
+  flex-shrink: 0;
 }
 
 .rp-role-badge.badge-compact .badge-emblem-img {
@@ -5273,19 +5336,34 @@ input, textarea, select {
 }
 
 .rp-role-badge.badge-compact .badge-title {
-  font-size: 10px;
+  font-size: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.1px;
+}
+
+.rp-role-badge.badge-compact[data-role="superadmin"] .badge-title {
+  font-size: 8px;
+  letter-spacing: -0.2px;
 }
 
 .rp-role-badge.badge-compact .badge-subtitle {
-  font-size: 8.5px;
+  font-size: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rp-role-badge.badge-compact .badge-content {
-  margin-right: 6px;
+  margin-right: 4px;
+  flex: 1;
+  min-width: 0;
 }
 
 .rp-role-badge.badge-compact .badge-right-decor {
-  height: 24px;
+  height: 22px;
+  flex-shrink: 0;
 }
 
 .rp-role-badge.badge-compact .badge-top-icon {
@@ -5294,7 +5372,7 @@ input, textarea, select {
 }
 
 .rp-role-badge.badge-compact .badge-slashes-wrap {
-  width: 16px;
+  width: 14px;
   height: 8px;
 }
 

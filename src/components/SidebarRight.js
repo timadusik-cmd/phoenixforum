@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { ICONS } from '../utils/icons.js';
-import { renderRoleBadge, renderUserBadges } from '../utils/badges.js';
+import { renderRoleBadge, renderUserBadges, getBadgeConfig, BADGE_ICONS } from '../utils/badges.js';
 import { formatTimeAgo } from '../utils/time.js';
 
 export function renderSidebarRight() {
@@ -117,6 +117,67 @@ export function renderSidebarRight() {
     `;
   }
 
+  // Helper to determine primary staff badge and secondary badge count
+  function getPrimaryStaffBadge(s) {
+    let list = [];
+    if (Array.isArray(s.badges) && s.badges.length > 0) {
+      list = s.badges;
+    } else if (Array.isArray(s.author_badges) && s.author_badges.length > 0) {
+      list = s.author_badges;
+    } else {
+      list = [{
+        key: s.role || 'player',
+        title: s.role_badge || 'Игрок',
+        color: s.role_color || '#94A3B8',
+        icon: 'crown'
+      }];
+    }
+
+    const resolved = list.map(b => {
+      const key = String(b.key || b.role || s.role || '').toLowerCase().trim();
+      const title = b.title || b.role_badge || s.role_badge || '';
+      const cfg = getBadgeConfig(key, title);
+      const color = b.color || cfg.color || '#FF1F36';
+      const iconKey = b.icon || cfg.icon || 'crown';
+
+      // Priority calculation: Superadmin > Developer > Admin > Moderator > Helper > Custom Staff > Regular
+      let priority = 1;
+      const lowerTitle = title.toLowerCase();
+      if (key === 'superadmin' || lowerTitle.includes('главный')) priority = 50;
+      else if (key === 'developer' || lowerTitle.includes('разработчик')) priority = 45;
+      else if (key === 'admin' || lowerTitle.includes('администратор')) priority = 40;
+      else if (key === 'moderator' || lowerTitle.includes('модератор')) priority = 30;
+      else if (key === 'helper' || lowerTitle.includes('хелпер')) priority = 20;
+      else if ((cfg.level && cfg.level >= 2) || (b.level && b.level >= 2)) priority = 15;
+      else priority = 5;
+
+      return {
+        key,
+        title: b.title || cfg.title,
+        color,
+        icon: iconKey,
+        priority
+      };
+    });
+
+    resolved.sort((a, b) => b.priority - a.priority);
+
+    const primary = resolved[0] || {
+      key: 'admin',
+      title: 'АДМИНИСТРАТОР',
+      color: '#E52338',
+      icon: 'crown',
+      priority: 40
+    };
+
+    const extra = resolved.slice(1);
+    return {
+      primary,
+      extraCount: extra.length,
+      extraTitles: extra.map(e => e.title).join(', ')
+    };
+  }
+
   // 1. Staff Online Widget
   const stats = state.onlineStats || {
     staffOnline: [],
@@ -132,9 +193,12 @@ export function renderSidebarRight() {
   if (staff.length > 0) {
     staffListHtml = staff.map(s => {
       const displayName = s.character_name || s.username;
-      const roleColor = s.role_color || '#FF1F36';
+      const { primary, extraCount, extraTitles } = getPrimaryStaffBadge(s);
+      const roleColor = primary.color || s.role_color || '#FF1F36';
+      const iconSvg = BADGE_ICONS[primary.icon] || BADGE_ICONS.crown;
+
       return `
-        <a href="/members/${encodeURIComponent(s.username)}" data-link class="staff-online-card">
+        <a href="/members/${encodeURIComponent(s.username)}" data-link class="staff-online-card" style="--staff-color: ${roleColor};">
           <div class="staff-avatar-box">
             <img src="${s.avatar || '/assets/avatar_ivan.jpg'}" alt="${s.username}" class="staff-avatar-pic" />
             <span class="staff-pulse-dot"></span>
@@ -142,9 +206,11 @@ export function renderSidebarRight() {
           <div class="staff-details">
             <div class="staff-nick-row">
               <span class="staff-nick" style="color: ${roleColor};">${displayName}</span>
+              ${extraCount > 0 ? `<span class="staff-pill-more" title="+${extraCount}: ${extraTitles}">+${extraCount}</span>` : ''}
             </div>
-            <div class="staff-badge-row">
-              ${renderUserBadges(s, { size: 'compact' })}
+            <div class="staff-role-pill" style="--pill-color: ${roleColor};">
+              <span class="staff-pill-icon">${iconSvg}</span>
+              <span class="staff-pill-text">${primary.title}</span>
             </div>
           </div>
         </a>
@@ -173,8 +239,8 @@ export function renderSidebarRight() {
         ${allUsers.map(u => {
           const roleColor = u.role_color || '#FF8A00';
           return `
-            <a href="/members/${encodeURIComponent(u.username)}" data-link class="online-user-tag" title="${u.username} (${u.role_badge || 'Игрок'})">
-              <span class="user-tag-dot" style="background: ${roleColor};"></span>
+            <a href="/members/${encodeURIComponent(u.username)}" data-link class="online-user-tag" style="--user-color: ${roleColor};" title="${u.username} (${u.role_badge || 'Игрок'})">
+              <span class="user-tag-dot" style="background: ${roleColor}; box-shadow: 0 0 6px ${roleColor};"></span>
               <span class="user-tag-name" style="color: ${roleColor};">${u.username}</span>
             </a>
           `;
