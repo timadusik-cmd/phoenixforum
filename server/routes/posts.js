@@ -2,6 +2,7 @@ import { Router } from 'express';
 import db from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { hasPermission } from '../middleware/rbac.js';
+import { getUserBadges } from '../utils/userBadges.js';
 
 const router = Router();
 
@@ -101,7 +102,24 @@ router.post('/', requireAuth, (req, res) => {
     `).get(postId);
 
     res.json({
-      post: { ...createdPost, reactions: [], myReaction: null },
+      post: {
+        ...createdPost,
+        author_badges: getUserBadges(createdPost.author_id, {
+          role: createdPost.author_role,
+          role_badge: createdPost.author_badge,
+          role_color: createdPost.author_color
+        }),
+        author_awards: db.prepare(`
+          SELECT a.id, a.number, a.title, a.description, a.icon_key, ua.reason, ua.created_at
+          FROM user_awards ua 
+          JOIN awards a ON ua.award_id = a.id 
+          WHERE ua.user_id = ? 
+          ORDER BY a.number ASC 
+          LIMIT 8
+        `).all(createdPost.author_id),
+        reactions: [],
+        myReaction: null
+      },
       message: 'Ответ успешно опубликован (+10 XP)!'
     });
   } catch (err) {

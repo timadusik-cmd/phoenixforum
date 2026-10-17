@@ -8991,17 +8991,106 @@ input, textarea, select {
   font-weight: 600;
 }
 
-.stat-level-mini-img {
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
-  object-fit: cover;
-  border: none;
-  box-shadow: none;
+/* 3. Level Shield Badge & Instant Tooltip */
+.stat-row-level {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 40px;
+}
+
+.level-shield-badge-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  user-select: none;
   flex-shrink: 0;
 }
 
-/* 4. Mini Awards Shelf on Post Author Sidebar (Clean borderless 3D Medals) */
+.level-shield-badge-wrap:hover {
+  transform: scale(1.15);
+  z-index: 100;
+}
+
+.level-shield-badge-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.8));
+}
+
+.level-shield-badge-num {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  color: #FFFFFF;
+  text-shadow: 0 1px 3px #000, 0 0 5px #000, 0 0 2px #000;
+  letter-spacing: -0.5px;
+  pointer-events: none;
+  line-height: 1;
+}
+
+.level-custom-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  background: rgba(14, 16, 23, 0.96);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 31, 54, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 12px rgba(255, 31, 54, 0.25);
+  border-radius: 7px;
+  padding: 6px 10px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
+  z-index: 1000;
+  text-align: center;
+}
+
+.level-shield-badge-wrap:hover .level-custom-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.level-tooltip-val {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #FFFFFF;
+}
+
+.level-tooltip-rank {
+  font-size: 10px;
+  font-weight: 700;
+  color: #FF4D61;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 1px;
+}
+
+.level-tooltip-arrow {
+  position: absolute;
+  top: 100%;
+  right: 12px;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid rgba(255, 31, 54, 0.5);
+}
+
+/* 4. Mini Awards Shelf on Post Author Sidebar (Clean borderless 3D Medals with Instant Hover Tooltip) */
 .author-mini-awards-rack {
   display: flex;
   align-items: center;
@@ -9013,6 +9102,7 @@ input, textarea, select {
   background: transparent;
   border: none;
   box-shadow: none;
+  position: relative;
 }
 
 .mini-award-item {
@@ -9025,16 +9115,16 @@ input, textarea, select {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  transition: transform 0.2s ease;
+  overflow: visible; /* IMPORTANT: Allows tooltip to pop out */
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
   cursor: pointer;
   position: relative;
   flex-shrink: 0;
 }
 
 .mini-award-item:hover {
-  transform: scale(1.2);
-  z-index: 5;
+  transform: scale(1.18);
+  z-index: 150;
 }
 
 .mini-award-img {
@@ -9045,12 +9135,128 @@ input, textarea, select {
   display: block;
 }
 
+/* Instant Hover Custom Tooltip */
+.award-custom-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: rgba(13, 15, 22, 0.97);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 49, 70, 0.38);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85), 0 0 14px rgba(255, 31, 54, 0.2);
+  border-radius: 8px;
+  padding: 8px 11px;
+  width: max-content;
+  max-width: 220px;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
+  z-index: 1000;
+  text-align: left;
+}
+
+.mini-award-item:hover .award-custom-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Smart edge positioning so tooltips never clip sidebar */
+.mini-award-item:first-child .award-custom-tooltip {
+  left: -4px;
+  right: auto;
+  transform: translateY(4px);
+}
+.mini-award-item:first-child:hover .award-custom-tooltip {
+  transform: translateY(0);
+}
+.mini-award-item:first-child .award-tooltip-arrow {
+  left: 18px;
+  transform: none;
+}
+
+.mini-award-item:last-child .award-custom-tooltip {
+  left: auto;
+  right: -4px;
+  transform: translateY(4px);
+}
+.mini-award-item:last-child:hover .award-custom-tooltip {
+  transform: translateY(0);
+}
+.mini-award-item:last-child .award-tooltip-arrow {
+  left: auto;
+  right: 18px;
+  transform: none;
+}
+
+.award-tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.award-tooltip-num {
+  font-size: 10px;
+  font-weight: 800;
+  color: #FF4D61;
+  background: rgba(255, 31, 54, 0.15);
+  padding: 1px 5px;
+  border-radius: 4px;
+  line-height: 1.2;
+}
+
+.award-tooltip-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #FFFFFF;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+.award-tooltip-reason {
+  font-size: 10.5px;
+  color: #FBBF24;
+  margin-top: 3px;
+  line-height: 1.35;
+  white-space: normal;
+  border-left: 2px solid #F59E0B;
+  padding-left: 6px;
+}
+
+.award-tooltip-reason .reason-label {
+  color: #94A3B8;
+  font-weight: 600;
+}
+
+.award-tooltip-desc {
+  font-size: 10px;
+  color: #94A3B8;
+  margin-top: 3px;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.award-tooltip-arrow {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid rgba(255, 49, 70, 0.45);
+}
+
 .mini-award-more {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.08);
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: #CBD5E1;
   font-size: 11px;
   font-weight: 700;
@@ -9061,10 +9267,10 @@ input, textarea, select {
   transition: all 0.2s ease;
 }
 
-.mini-award-more:hover {
-  background: rgba(255, 255, 255, 0.16);
+.mini-award-item:hover .mini-award-more {
+  background: rgba(255, 255, 255, 0.18);
   color: #FFFFFF;
-  transform: scale(1.1);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 /* 4.2 3D Award Image inside Award Showcase Cards */

@@ -125,6 +125,25 @@ export function renderLevelShield(level = 1, options = {}) {
   `;
 }
 
+// Render Transparent 3D Level Shield Badge with centered level number and instant tooltip
+export function renderLevelBadge(level = 1, options = {}) {
+  const lvl = Math.min(50, Math.max(1, parseInt(level) || 1));
+  const { size = 36, className = '' } = options;
+  const rank = getRankTitle(lvl);
+
+  return `
+    <div class="level-shield-badge-wrap ${className}" style="width: ${size}px; height: ${size}px;">
+      <img src="/assets/awards/level_shield.png" alt="Уровень ${lvl}" class="level-shield-badge-img" />
+      <span class="level-shield-badge-num">${lvl}</span>
+      <div class="level-custom-tooltip">
+        <div class="level-tooltip-val">Уровень ${lvl}</div>
+        <div class="level-tooltip-rank">${rank}</div>
+        <div class="level-tooltip-arrow"></div>
+      </div>
+    </div>
+  `;
+}
+
 // 20 Official Forum Awards SVG Icons (Red Neon Circular Badges)
 export function getAwardSvg(iconKey) {
   switch (iconKey) {
@@ -269,23 +288,54 @@ export function renderAwardCard(award, isUnlocked = false, unlockedAt = null) {
   `;
 }
 
-// Render Mini Awards Rack for thread post author block with rich 3D icons
-export function renderMiniAwards(awardsList = [], max = 4) {
+// Render Mini Awards Rack for thread post author block with rich 3D icons & instant custom hover tooltips
+export function renderMiniAwards(awardsList = [], max = 5) {
   if (!awardsList || awardsList.length === 0) return '';
   const displayList = awardsList.slice(0, max);
   const moreCount = awardsList.length - max;
 
   return `
-    <div class="author-mini-awards-rack" title="Награды автора (${awardsList.length})">
+    <div class="author-mini-awards-rack">
       ${displayList.map(a => {
         const imgUrl = getAwardImage(a);
+        const num = a.number ? `№${a.number}` : '';
+        const title = a.title || 'Награда';
+        const reason = a.reason ? a.reason : '';
+        const desc = a.description || '';
+
         return `
-          <div class="mini-award-item" title="[${a.number || ''}] ${a.title || ''}">
-            <img src="${imgUrl}" alt="${a.title || 'Награда'}" class="mini-award-img" />
+          <div class="mini-award-item">
+            <img src="${imgUrl}" alt="${title}" class="mini-award-img" />
+            <div class="award-custom-tooltip">
+              <div class="award-tooltip-header">
+                ${num ? `<span class="award-tooltip-num">${num}</span>` : ''}
+                <span class="award-tooltip-title">${title}</span>
+              </div>
+              ${reason ? `
+                <div class="award-tooltip-reason">
+                  <span class="reason-label">Причина:</span> ${reason}
+                </div>
+              ` : ''}
+              ${desc ? `
+                <div class="award-tooltip-desc">${desc}</div>
+              ` : ''}
+              <div class="award-tooltip-arrow"></div>
+            </div>
           </div>
         `;
       }).join('')}
-      ${moreCount > 0 ? `<div class="mini-award-more" title="Ещё ${moreCount} наград">+${moreCount}</div>` : ''}
+      ${moreCount > 0 ? `
+        <div class="mini-award-item mini-award-more-item">
+          <div class="mini-award-more">+${moreCount}</div>
+          <div class="award-custom-tooltip">
+            <div class="award-tooltip-header">
+              <span class="award-tooltip-title">Всего наград: ${awardsList.length}</span>
+            </div>
+            <div class="award-tooltip-desc">И ещё +${moreCount} наград в профиле</div>
+            <div class="award-tooltip-arrow"></div>
+          </div>
+        </div>
+      ` : ''}
     </div>
   `;
 }

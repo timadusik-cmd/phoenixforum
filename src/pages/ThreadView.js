@@ -4,7 +4,7 @@ import { ICONS } from '../utils/icons.js';
 import { renderRichEditor } from '../components/RichEditor.js';
 import { renderRoleBadge, renderUserBadges } from '../utils/badges.js';
 import { formatTimeAgo } from '../utils/time.js';
-import { renderLevelShield, renderMiniAwards, getRankTitle } from '../utils/awards.js';
+import { renderLevelShield, renderLevelBadge, renderMiniAwards, getRankTitle } from '../utils/awards.js';
 
 // Rich Markdown & BBCode parser for post content
 export function formatPostContent(rawText) {
@@ -200,12 +200,9 @@ export function renderThreadView(data) {
                 </div>
 
                 <div class="post-author-stats">
-                  <div class="stat-row">
+                  <div class="stat-row stat-row-level">
                     <span class="lbl">Уровень:</span>
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                      <img src="/assets/awards/level_shield.jpg" alt="LVL" class="stat-level-mini-img" />
-                      <span class="val" style="font-weight: 700;">${post.author_level || 1}</span>
-                    </div>
+                    ${renderLevelBadge(post.author_level || 1, { size: 36 })}
                   </div>
                   <div class="stat-row">
                     <span class="lbl">Репутация:</span>
