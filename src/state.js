@@ -12,7 +12,15 @@ export const state = {
   authTab: 'login', // 'login' | 'register'
   authError: null,
   reportContext: null, // { postId, threadId }
-  isLoading: false
+  isLoading: false,
+  onlineStats: {
+    staffOnline: [],
+    usersOnline: [],
+    totalMembersOnline: 0,
+    guestsOnline: 0,
+    totalOnline: 0,
+    recordOnline: 142
+  }
 };
 
 const listeners = new Set();

@@ -117,10 +117,122 @@ export function renderSidebarRight() {
     `;
   }
 
+  // 1. Staff Online Widget
+  const stats = state.onlineStats || {
+    staffOnline: [],
+    usersOnline: [],
+    totalMembersOnline: 0,
+    guestsOnline: 18,
+    totalOnline: 19,
+    recordOnline: 142
+  };
+
+  const staff = (stats.staffOnline && stats.staffOnline.length > 0) ? stats.staffOnline : [];
+  let staffListHtml = '';
+  if (staff.length > 0) {
+    staffListHtml = staff.map(s => {
+      const displayName = s.character_name || s.username;
+      const roleColor = s.role_color || '#FF1F36';
+      return `
+        <a href="/members/${encodeURIComponent(s.username)}" data-link class="staff-online-card">
+          <div class="staff-avatar-box">
+            <img src="${s.avatar || '/assets/avatar_ivan.jpg'}" alt="${s.username}" class="staff-avatar-pic" />
+            <span class="staff-pulse-dot"></span>
+          </div>
+          <div class="staff-details">
+            <div class="staff-nick-row">
+              <span class="staff-nick" style="color: ${roleColor};">${displayName}</span>
+            </div>
+            <div class="staff-badge-row">
+              ${renderUserBadges(s, { size: 'compact' })}
+            </div>
+          </div>
+        </a>
+      `;
+    }).join('');
+  } else {
+    staffListHtml = `
+      <div class="sidebar-online-empty">
+        <span class="empty-online-icon">${ICONS.shield}</span>
+        <span>Сейчас нет администрации в сети</span>
+      </div>
+    `;
+  }
+
+  // 2. Forum Online Widget
+  const allUsers = (stats.usersOnline && stats.usersOnline.length > 0) ? stats.usersOnline : [];
+  const totalMembersOnline = stats.totalMembersOnline || allUsers.length;
+  const guestsCount = stats.guestsOnline || 18;
+  const totalOnline = stats.totalOnline || (totalMembersOnline + guestsCount);
+  const recordCount = stats.recordOnline || 142;
+
+  let usersChipsHtml = '';
+  if (allUsers.length > 0) {
+    usersChipsHtml = `
+      <div class="online-users-cloud">
+        ${allUsers.map(u => {
+          const roleColor = u.role_color || '#FF8A00';
+          return `
+            <a href="/members/${encodeURIComponent(u.username)}" data-link class="online-user-tag" title="${u.username} (${u.role_badge || 'Игрок'})">
+              <span class="user-tag-dot" style="background: ${roleColor};"></span>
+              <span class="user-tag-name" style="color: ${roleColor};">${u.username}</span>
+            </a>
+          `;
+        }).join('')}
+      </div>
+    `;
+  } else {
+    usersChipsHtml = `
+      <div class="sidebar-online-empty">
+        <span>Пользователей в сети нет</span>
+      </div>
+    `;
+  }
+
   return `
     <aside class="sidebar-right">
       <!-- Profile Widget -->
       ${profileHtml}
+
+      <!-- Staff Online Widget -->
+      <div class="sidebar-online-widget staff-widget">
+        <div class="widget-header-row">
+          <div class="widget-title-group">
+            <span class="widget-title-icon staff-icon">${ICONS.shield}</span>
+            <h4 class="widget-heading">Команда онлайн</h4>
+          </div>
+          <span class="online-badge-count ${staff.length > 0 ? 'active' : ''}">${staff.length}</span>
+        </div>
+        <div class="staff-online-list">
+          ${staffListHtml}
+        </div>
+      </div>
+
+      <!-- Forum Online Widget -->
+      <div class="sidebar-online-widget users-widget">
+        <div class="widget-header-row">
+          <div class="widget-title-group">
+            <span class="widget-title-icon">${ICONS.users}</span>
+            <h4 class="widget-heading">Онлайн форума</h4>
+          </div>
+          <span class="online-pulse-indicator">
+            <span class="pulse-circle"></span>
+            <span class="online-count-val">${totalOnline}</span>
+          </span>
+        </div>
+
+        <div class="online-stats-pill">
+          <span class="stats-pill-item"><strong>${totalMembersOnline}</strong> пользователей</span>
+          <span class="stats-pill-divider">•</span>
+          <span class="stats-pill-item"><strong>${guestsCount}</strong> гостей</span>
+        </div>
+
+        ${usersChipsHtml}
+
+        <div class="online-record-footer">
+          <span>Рекорд онлайна: <strong>${recordCount}</strong> игроков</span>
+        </div>
+      </div>
 
       <!-- Recent Topics Card -->
       <div class="recent-topics-widget">

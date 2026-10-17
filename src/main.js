@@ -1284,17 +1284,36 @@ async function initApp() {
     console.error('Failed to load custom badges:', err);
   }
 
-  // 2. Fetch Initial Categories & Recent Threads
+  // 2. Fetch Initial Categories, Recent Threads & Online Stats
   try {
-    const [catsRes, recentsRes] = await Promise.all([
-      api.categories.getAll(),
-      api.threads.getRecent()
+    const [catsRes, recentsRes, onlineRes] = await Promise.all([
+      api.categories.getAll().catch(() => ({ categories: [] })),
+      api.threads.getRecent().catch(() => ({ threads: [] })),
+      api.users.getOnlineStats().catch(() => null)
     ]);
     state.categories = catsRes.categories || [];
     state.recentThreads = recentsRes.threads || [];
+    if (onlineRes) {
+      state.onlineStats = onlineRes;
+    }
   } catch (err) {
     console.error('Failed to load initial forum data:', err);
   }
+
+  // Periodic refresh of online stats every 30 seconds
+  setInterval(async () => {
+    try {
+      const stats = await api.users.getOnlineStats();
+      if (stats) {
+        state.onlineStats = stats;
+        const rightSidebar = document.querySelector('.sidebar-right');
+        if (rightSidebar) {
+          rightSidebar.outerHTML = renderSidebarRight();
+          attachGlobalEvents();
+        }
+      }
+    } catch {}
+  }, 30000);
 
   // 3. Subscribe State Change to Re-render Header & Sidebars
   subscribe(() => {

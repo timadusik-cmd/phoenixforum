@@ -143,7 +143,8 @@ export const api = {
       const query = new URLSearchParams(params).toString();
       return request(`/api/users?${query}`);
     },
-    getProfile: (idOrName) => request(`/api/users/${encodeURIComponent(idOrName)}`)
+    getProfile: (idOrName) => request(`/api/users/${encodeURIComponent(idOrName)}`),
+    getOnlineStats: () => request('/api/users/stats/online')
   },
 
   // Notifications

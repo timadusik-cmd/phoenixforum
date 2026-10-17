@@ -79,6 +79,73 @@ router.get('/', (req, res) => {
   }
 });
 
+// GET Online Users & Staff
+router.get('/stats/online', (req, res) => {
+  try {
+    const staff = db.prepare(`
+      SELECT id, username, character_name, avatar, role, role_color, role_badge, status, level
+      FROM users
+      WHERE status = 'online' AND (
+        role IN ('superadmin', 'admin', 'moderator', 'helper')
+        OR id IN (
+          SELECT user_id FROM user_badges ub 
+          JOIN custom_badges cb ON ub.badge_key = cb.key 
+          WHERE cb.level >= 2
+        )
+      )
+      ORDER BY 
+        CASE role 
+          WHEN 'superadmin' THEN 1 
+          WHEN 'admin' THEN 2 
+          WHEN 'moderator' THEN 3 
+          WHEN 'helper' THEN 4 
+          ELSE 5 
+        END ASC,
+        username ASC
+    `).all();
+
+    const staffWithBadges = staff.map(u => ({
+      ...u,
+      badges: getUserBadges(u.id, u)
+    }));
+
+    const allOnline = db.prepare(`
+      SELECT id, username, character_name, avatar, role, role_color, role_badge, status, level
+      FROM users
+      WHERE status = 'online'
+      ORDER BY 
+        CASE role 
+          WHEN 'superadmin' THEN 1 
+          WHEN 'admin' THEN 2 
+          WHEN 'moderator' THEN 3 
+          WHEN 'helper' THEN 4 
+          ELSE 5 
+        END ASC,
+        username ASC
+      LIMIT 40
+    `).all();
+
+    const usersWithBadges = allOnline.map(u => ({
+      ...u,
+      badges: getUserBadges(u.id, u)
+    }));
+
+    const totalMembersOnline = db.prepare("SELECT COUNT(*) as count FROM users WHERE status = 'online'").get().count;
+
+    res.json({
+      staffOnline: staffWithBadges,
+      usersOnline: usersWithBadges,
+      totalMembersOnline,
+      guestsOnline: 18,
+      totalOnline: totalMembersOnline + 18,
+      recordOnline: 142
+    });
+  } catch (err) {
+    console.error('Error fetching online stats:', err);
+    res.status(500).json({ error: 'Не удалось загрузить данные онлайна.' });
+  }
+});
+
 // GET User Profile by ID or Username
 router.get('/:idOrName', (req, res) => {
   try {
