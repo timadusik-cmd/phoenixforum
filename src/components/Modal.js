@@ -1,6 +1,6 @@
 // Phoenix RP Forum - Modals Component
 import { state, notifyStateChange } from '../state.js';
-import { ICONS } from '../utils/icons.js';
+import { ICONS, getIcon } from '../utils/icons.js';
 import { api, authStorage } from '../api/client.js';
 import { playSound } from '../utils/sound.js';
 import { router } from '../router.js';
@@ -449,6 +449,369 @@ export function renderModal() {
     `;
   }
 
+  // 8. Admin Category Modal (Создание и Редактирование Категории форума)
+  else if (state.activeModal === 'adminCategory') {
+    const ctx = state.modalContext || {};
+    const isEdit = ctx.mode === 'edit';
+    const cat = ctx.category || {};
+    const defaultColor = cat.color || '#FF1F36';
+    const defaultIcon = cat.icon || 'folder';
+
+    const availableIcons = [
+      'folder', 'star', 'crown', 'shield', 'flame', 'car', 'briefcase', 
+      'scale', 'gavel', 'users', 'help-circle', 'message-square', 'wrench', 
+      'newspaper', 'servers', 'shopping-cart'
+    ];
+
+    const presetColors = [
+      '#FF1F36', '#FF8A00', '#F59E0B', '#10B981', '#0091FF', '#38BDF8', '#8B5CF6', '#EC4899', '#64748B'
+    ];
+
+    container.innerHTML = `
+      <div class="modal-backdrop" id="modal-backdrop">
+        <div class="modal-card" style="max-width: 540px;">
+          <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="color: ${defaultColor};">${ICONS.folder}</div>
+              <h3 class="modal-title">${isEdit ? 'Редактировать категорию форума' : 'Создать категорию форума'}</h3>
+            </div>
+            <button class="modal-close-btn" id="modal-close-btn">${ICONS.x}</button>
+          </div>
+
+          <div class="modal-body">
+            <!-- Live Preview -->
+            <div style="margin-bottom: 18px;">
+              <label style="font-size: 11px; color: #8A96A6; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 6px; display: block;">Предпросмотр шапки категории:</label>
+              <div class="admin-live-fcat-preview" id="live-fcat-preview" style="--fcat-p-color: ${defaultColor};">
+                <span class="admin-live-fcat-accent" id="preview-fcat-accent" style="background: ${defaultColor};"></span>
+                <div class="admin-live-fcat-icon" id="preview-fcat-icon" style="color: ${defaultColor};">
+                  ${getIcon(defaultIcon)}
+                </div>
+                <div>
+                  <h4 class="admin-live-fcat-title" id="preview-fcat-title">${cat.title || 'НАЗВАНИЕ КАТЕГОРИИ'}</h4>
+                  <p class="admin-live-fcat-desc" id="preview-fcat-desc">${cat.description || 'Описание категории форума...'}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Form fields -->
+            <div class="modal-field">
+              <label>Название категории *</label>
+              <input type="text" class="modal-input" id="fcat-input-title" value="${cat.title || ''}" placeholder="Например: ОСНОВНОЙ РАЗДЕЛ или СЕРВЕР PHOENIX RP" required />
+            </div>
+
+            <div class="modal-field">
+              <label>Краткое описание категории</label>
+              <input type="text" class="modal-input" id="fcat-input-desc" value="${cat.description || ''}" placeholder="Например: Новости проекта, правила и объявления руководства" />
+            </div>
+
+            <div class="modal-field">
+              <label>Цвет акцента категории</label>
+              <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+                <input type="color" id="fcat-color-picker" value="${defaultColor}" style="width: 40px; height: 38px; border: none; border-radius: 6px; background: none; cursor: pointer;" />
+                <input type="text" class="modal-input" id="fcat-color-text" value="${defaultColor}" style="width: 130px; font-family: monospace; text-transform: uppercase;" />
+              </div>
+              <div class="color-presets-row">
+                ${presetColors.map(c => `
+                  <button type="button" class="color-preset-dot ${c === defaultColor ? 'active' : ''}" data-fcat-color="${c}" style="background: ${c};" title="${c}"></button>
+                `).join('')}
+              </div>
+            </div>
+
+            <div class="modal-field">
+              <label>Иконка категории</label>
+              <input type="hidden" id="fcat-input-icon" value="${defaultIcon}" />
+              <div class="icon-picker-grid">
+                ${availableIcons.map(ic => `
+                  <button type="button" class="icon-choice-btn ${ic === defaultIcon ? 'active' : ''}" data-fcat-icon="${ic}" title="${ic}">
+                    ${getIcon(ic)}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+
+            <div class="modal-field">
+              <label>Порядок отображения на странице</label>
+              <input type="number" class="modal-input" id="fcat-input-order" value="${cat.display_order ?? 10}" step="1" style="width: 120px;" />
+            </div>
+
+            <button class="btn-create-topic" id="btn-submit-fcat" data-id="${cat.id || ''}" style="width: 100%; justify-content: center; margin-top: 14px;">
+              ${ICONS.check}
+              <span>${isEdit ? 'Сохранить категорию' : 'Создать категорию'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // 9. Admin Section Modal (Масштабная настройка Раздела / Подраздела)
+  else if (state.activeModal === 'adminSection') {
+    const ctx = state.modalContext || {};
+    const isEdit = ctx.mode === 'edit';
+    const s = ctx.section || {};
+    const forumCategories = ctx.forumCategories || state.forumCategories || [];
+    const parentCandidates = (ctx.categories || state.categories || []).filter(c => c.id !== s.id && !c.parent_id);
+
+    const defaultFcatId = s.forum_category_id || ctx.defaultFcatId || (forumCategories[0] ? forumCategories[0].id : '');
+    const defaultParentId = s.parent_id || ctx.defaultParentId || '';
+
+    const defaultIcon = s.icon || 'message-square';
+    const defaultIconColor = s.icon_color || '#FF1F36';
+    const defaultIconBg = s.icon_bg || 'rgba(255, 31, 54, 0.12)';
+    const defaultTitleColor = s.title_color || '#FFFFFF';
+    const defaultDescColor = s.description_color || '#8E95A5';
+    const defaultBadgeText = s.badge_text || '';
+    const defaultBadgeColor = s.badge_color || '#FF1F36';
+
+    const availableIcons = [
+      'newspaper', 'megaphone', 'users', 'message-square', 'chatBubble', 'shield', 
+      'flame', 'wrench', 'car', 'briefcase', 'scale', 'gavel', 'star', 'crown', 
+      'heart', 'help-circle', 'award', 'folder', 'lock', 'server', 'shopping-cart'
+    ];
+
+    const presetColors = [
+      '#FF1F36', '#FF8A00', '#F59E0B', '#10B981', '#0091FF', '#38BDF8', '#8B5CF6', '#EC4899', '#FFFFFF', '#8E95A5'
+    ];
+
+    const presetBgColors = [
+      'rgba(255, 31, 54, 0.12)', 'rgba(255, 138, 0, 0.12)', 'rgba(16, 185, 129, 0.12)',
+      'rgba(0, 145, 255, 0.12)', 'rgba(139, 92, 246, 0.12)', 'rgba(236, 72, 153, 0.12)',
+      'rgba(255, 255, 255, 0.08)', '#141721', '#1C2230', '#07090D'
+    ];
+
+    container.innerHTML = `
+      <div class="modal-backdrop" id="modal-backdrop">
+        <div class="modal-card" style="max-width: 680px; max-height: 90vh; overflow-y: auto;">
+          <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="color: #FF1F36;">${ICONS.settings}</div>
+              <h3 class="modal-title">${isEdit ? 'Масштабная настройка раздела форума' : 'Создать раздел / подраздел форума'}</h3>
+            </div>
+            <button class="modal-close-btn" id="modal-close-btn">${ICONS.x}</button>
+          </div>
+
+          <div class="modal-body">
+            <!-- LIVE PREVIEW CARD -->
+            <div style="margin-bottom: 20px;">
+              <label style="font-size: 11px; color: #8A96A6; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 6px; display: block;">Живой предпросмотр карточки раздела:</label>
+              <div class="admin-section-live-preview">
+                <div class="category-card" id="preview-section-card" style="margin: 0; background: #0B0E14; border: 1px solid #1E2535;">
+                  <div class="category-main-col">
+                    <div class="category-icon-box" id="preview-sec-icon-box" style="background: ${defaultIconBg}; color: ${defaultIconColor}; box-shadow: 0 0 10px ${defaultIconColor}25;">
+                      ${getIcon(defaultIcon)}
+                    </div>
+                    <div class="category-info">
+                      <div class="category-title-row">
+                        <span class="category-title" id="preview-sec-title" style="color: ${defaultTitleColor}; font-weight: 700; font-size: 14.5px;">
+                          ${s.title || 'Название раздела'}
+                        </span>
+                        <span class="section-custom-badge" id="preview-sec-badge" style="background: ${defaultBadgeColor}; display: ${defaultBadgeText ? 'inline-flex' : 'none'};">
+                          ${defaultBadgeText || 'HOT'}
+                        </span>
+                        <span class="section-locked-icon" id="preview-sec-locked" style="display: ${s.is_locked ? 'inline-flex' : 'none'};" title="Только чтение">
+                          ${ICONS.lock}
+                        </span>
+                      </div>
+                      <p class="category-desc" id="preview-sec-desc" style="color: ${defaultDescColor}; font-size: 12px; margin-top: 2px;">
+                        ${s.description || 'Описание раздела появится здесь в реальном времени...'}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="category-stats-col">
+                    <div class="cat-stat-block">
+                      <div class="cat-stat-val">${ICONS.chatBubble} <span>14</span></div>
+                      <span class="cat-stat-lbl">Темы</span>
+                    </div>
+                    <div class="cat-stat-block">
+                      <div class="cat-stat-val">${ICONS.docText} <span>182</span></div>
+                      <span class="cat-stat-lbl">Сообщения</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab / Section 1: Основные данные -->
+            <div class="admin-config-group-box">
+              <h4 class="admin-config-group-title">${ICONS.folder} 1. Основные параметры и привязка</h4>
+              
+              <div class="form-row-grid">
+                <div class="modal-field">
+                  <label>Родительская категория *</label>
+                  <select class="modal-select" id="sec-select-fcat">
+                    <option value="">(Без категории)</option>
+                    ${forumCategories.map(fc => `
+                      <option value="${fc.id}" ${fc.id === defaultFcatId ? 'selected' : ''}>${fc.title}</option>
+                    `).join('')}
+                  </select>
+                </div>
+
+                <div class="modal-field">
+                  <label>Сделать подразделом внутри</label>
+                  <select class="modal-select" id="sec-select-parent">
+                    <option value="">Нет (Основной раздел категории)</option>
+                    ${parentCandidates.map(p => `
+                      <option value="${p.id}" ${p.id === defaultParentId ? 'selected' : ''}>↳ ${p.title}</option>
+                    `).join('')}
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row-grid">
+                <div class="modal-field">
+                  <label>Название раздела *</label>
+                  <input type="text" class="modal-input" id="sec-input-title" value="${s.title || ''}" placeholder="Например: Жалобы на администрацию" required />
+                </div>
+
+                <div class="modal-field">
+                  <label>URL-слаг (ID раздела) *</label>
+                  <input type="text" class="modal-input" id="sec-input-slug" value="${s.slug || ''}" placeholder="admin-complaints" required style="font-family: monospace;" ${isEdit ? 'data-manual="true"' : ''} />
+                </div>
+              </div>
+
+              <div class="modal-field" style="margin-bottom: 0;">
+                <label>Описание раздела</label>
+                <textarea class="modal-textarea" id="sec-input-desc" placeholder="Краткое описание назначения раздела..." style="min-height: 60px;">${s.description || ''}</textarea>
+              </div>
+            </div>
+
+            <!-- Tab / Section 2: Масштабное визуальное оформление -->
+            <div class="admin-config-group-box" style="margin-top: 16px;">
+              <h4 class="admin-config-group-title">🎨 2. Масштабная настройка цветов, иконки и бейджа</h4>
+
+              <!-- Выбор иконки -->
+              <div class="modal-field">
+                <label>Иконка раздела</label>
+                <input type="hidden" id="sec-input-icon" value="${defaultIcon}" />
+                <div class="icon-picker-grid" style="max-height: 120px; overflow-y: auto;">
+                  ${availableIcons.map(ic => `
+                    <button type="button" class="icon-choice-btn ${ic === defaultIcon ? 'active' : ''}" data-sec-icon="${ic}" title="${ic}">
+                      ${getIcon(ic)}
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <!-- Цвета иконки и фона -->
+              <div class="form-row-grid">
+                <div class="modal-field">
+                  <label>Цвет иконки</label>
+                  <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
+                    <input type="color" id="sec-color-icon-picker" value="${defaultIconColor.startsWith('#') ? defaultIconColor : '#FF1F36'}" style="width: 36px; height: 34px; border: none; border-radius: 6px; background: none; cursor: pointer;" />
+                    <input type="text" class="modal-input" id="sec-color-icon-text" value="${defaultIconColor}" style="width: 120px; font-family: monospace;" />
+                  </div>
+                  <div class="color-presets-row">
+                    ${presetColors.map(c => `
+                      <button type="button" class="color-preset-dot" data-sec-target="icon" data-color="${c}" style="background: ${c};" title="${c}"></button>
+                    `).join('')}
+                  </div>
+                </div>
+
+                <div class="modal-field">
+                  <label>Фоновый цвет иконки (CSS/RGBA)</label>
+                  <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
+                    <input type="text" class="modal-input" id="sec-color-icon-bg-text" value="${defaultIconBg}" style="width: 100%; font-family: monospace;" />
+                  </div>
+                  <div class="color-presets-row">
+                    ${presetBgColors.map(c => `
+                      <button type="button" class="color-preset-dot" data-sec-target="icon-bg" data-color="${c}" style="background: ${c};" title="${c}"></button>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Цвет заголовка и цвет описания -->
+              <div class="form-row-grid">
+                <div class="modal-field">
+                  <label>Цвет названия раздела</label>
+                  <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
+                    <input type="color" id="sec-color-title-picker" value="${defaultTitleColor.startsWith('#') ? defaultTitleColor : '#FFFFFF'}" style="width: 36px; height: 34px; border: none; border-radius: 6px; background: none; cursor: pointer;" />
+                    <input type="text" class="modal-input" id="sec-color-title-text" value="${defaultTitleColor}" style="width: 120px; font-family: monospace;" />
+                  </div>
+                  <div class="color-presets-row">
+                    ${presetColors.map(c => `
+                      <button type="button" class="color-preset-dot" data-sec-target="title" data-color="${c}" style="background: ${c};" title="${c}"></button>
+                    `).join('')}
+                  </div>
+                </div>
+
+                <div class="modal-field">
+                  <label>Цвет описания раздела</label>
+                  <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
+                    <input type="color" id="sec-color-desc-picker" value="${defaultDescColor.startsWith('#') ? defaultDescColor : '#8E95A5'}" style="width: 36px; height: 34px; border: none; border-radius: 6px; background: none; cursor: pointer;" />
+                    <input type="text" class="modal-input" id="sec-color-desc-text" value="${defaultDescColor}" style="width: 120px; font-family: monospace;" />
+                  </div>
+                  <div class="color-presets-row">
+                    ${['#8E95A5', '#A0AEC0', '#CBD5E1', '#E2E8F0', '#FFFFFF', '#FF8A00'].map(c => `
+                      <button type="button" class="color-preset-dot" data-sec-target="desc" data-color="${c}" style="background: ${c};" title="${c}"></button>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Кастомный бейдж (плашка раздела) -->
+              <div class="form-row-grid" style="border-top: 1px dashed #1E2535; padding-top: 12px; margin-top: 4px;">
+                <div class="modal-field" style="margin-bottom: 0;">
+                  <label>Текст бейджа/плашки (опционально)</label>
+                  <input type="text" class="modal-input" id="sec-input-badge-text" value="${defaultBadgeText}" placeholder="Например: ВАЖНО, HOT, NEW, RP, LSPD" />
+                </div>
+
+                <div class="modal-field" style="margin-bottom: 0;">
+                  <label>Цвет бейджа</label>
+                  <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
+                    <input type="color" id="sec-color-badge-picker" value="${defaultBadgeColor.startsWith('#') ? defaultBadgeColor : '#FF1F36'}" style="width: 36px; height: 34px; border: none; border-radius: 6px; background: none; cursor: pointer;" />
+                    <input type="text" class="modal-input" id="sec-color-badge-text" value="${defaultBadgeColor}" style="width: 120px; font-family: monospace;" />
+                  </div>
+                  <div class="color-presets-row">
+                    ${presetColors.map(c => `
+                      <button type="button" class="color-preset-dot" data-sec-target="badge" data-color="${c}" style="background: ${c};" title="${c}"></button>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab / Section 3: Доступ и поведение -->
+            <div class="admin-config-group-box" style="margin-top: 16px;">
+              <h4 class="admin-config-group-title">🔒 3. Права доступа и параметры отображения</h4>
+
+              <div class="form-row-grid">
+                <div class="modal-field" style="margin-bottom: 0;">
+                  <label>Кто может создавать темы в разделе</label>
+                  <select class="modal-select" id="sec-select-min-role">
+                    <option value="player" ${s.min_role_to_post === 'player' ? 'selected' : ''}>Все авторизованные игроки (Player)</option>
+                    <option value="helper" ${s.min_role_to_post === 'helper' ? 'selected' : ''}>Только Хелперы и выше</option>
+                    <option value="moderator" ${s.min_role_to_post === 'moderator' ? 'selected' : ''}>Только Модераторы и выше</option>
+                    <option value="admin" ${s.min_role_to_post === 'admin' ? 'selected' : ''}>Только Администраторы и выше</option>
+                    <option value="superadmin" ${s.min_role_to_post === 'superadmin' ? 'selected' : ''}>Только Главные Администраторы</option>
+                  </select>
+                </div>
+
+                <div class="modal-field" style="margin-bottom: 0;">
+                  <label>Порядок сортировки</label>
+                  <input type="number" class="modal-input" id="sec-input-order" value="${s.display_order ?? 0}" step="1" />
+                </div>
+              </div>
+
+              <div style="margin-top: 14px; display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" id="sec-input-locked" ${s.is_locked ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: #FF1F36; cursor: pointer;" />
+                <label for="sec-input-locked" style="color: #FFF; font-size: 13px; cursor: pointer; user-select: none;">
+                  <strong>Закрыть раздел (Только чтение)</strong> — обычные пользователи не смогут создавать новые темы в этом разделе.
+                </label>
+              </div>
+            </div>
+
+            <button class="btn-create-topic" id="btn-submit-section" data-id="${s.id || ''}" style="width: 100%; justify-content: center; margin-top: 20px; padding: 12px; font-size: 13.5px;">
+              ${ICONS.check}
+              <span>${isEdit ? 'Сохранить масштабные настройки раздела' : 'Создать раздел форума'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   attachModalEvents();
 }
 
@@ -664,4 +1027,362 @@ function attachModalEvents() {
       if (input) input.value = name;
     };
   });
+
+  // -----------------------------------------------------------
+  // Admin Category Modal Events & Live Preview
+  // -----------------------------------------------------------
+  const fcatTitleInput = document.getElementById('fcat-input-title');
+  const fcatDescInput = document.getElementById('fcat-input-desc');
+  const fcatColorPicker = document.getElementById('fcat-color-picker');
+  const fcatColorText = document.getElementById('fcat-color-text');
+  const fcatIconInput = document.getElementById('fcat-input-icon');
+  const fcatOrderInput = document.getElementById('fcat-input-order');
+  const btnSubmitFcat = document.getElementById('btn-submit-fcat');
+
+  const pFcatTitle = document.getElementById('preview-fcat-title');
+  const pFcatDesc = document.getElementById('preview-fcat-desc');
+  const pFcatAccent = document.getElementById('preview-fcat-accent');
+  const pFcatIcon = document.getElementById('preview-fcat-icon');
+
+  function updateFcatColor(c) {
+    if (pFcatAccent) pFcatAccent.style.background = c;
+    if (pFcatIcon) pFcatIcon.style.color = c;
+    const card = document.getElementById('live-fcat-preview');
+    if (card) card.style.setProperty('--fcat-p-color', c);
+  }
+
+  if (fcatTitleInput && pFcatTitle) {
+    fcatTitleInput.oninput = () => {
+      pFcatTitle.textContent = fcatTitleInput.value.trim() || 'НАЗВАНИЕ КАТЕГОРИИ';
+    };
+  }
+
+  if (fcatDescInput && pFcatDesc) {
+    fcatDescInput.oninput = () => {
+      pFcatDesc.textContent = fcatDescInput.value.trim() || 'Описание категории форума...';
+    };
+  }
+
+  if (fcatColorPicker && fcatColorText) {
+    fcatColorPicker.oninput = () => {
+      fcatColorText.value = fcatColorPicker.value;
+      updateFcatColor(fcatColorPicker.value);
+    };
+    fcatColorText.oninput = () => {
+      const val = fcatColorText.value.trim();
+      if (val.startsWith('#') && (val.length === 4 || val.length === 7)) {
+        fcatColorPicker.value = val;
+      }
+      updateFcatColor(val);
+    };
+  }
+
+  document.querySelectorAll('[data-fcat-color]').forEach(btn => {
+    btn.onclick = () => {
+      const c = btn.getAttribute('data-fcat-color');
+      if (fcatColorPicker) fcatColorPicker.value = c;
+      if (fcatColorText) fcatColorText.value = c;
+      updateFcatColor(c);
+      document.querySelectorAll('[data-fcat-color]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    };
+  });
+
+  document.querySelectorAll('[data-fcat-icon]').forEach(btn => {
+    btn.onclick = () => {
+      const ic = btn.getAttribute('data-fcat-icon');
+      if (fcatIconInput) fcatIconInput.value = ic;
+      if (pFcatIcon) pFcatIcon.innerHTML = getIcon(ic);
+      document.querySelectorAll('[data-fcat-icon]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    };
+  });
+
+  if (btnSubmitFcat) {
+    btnSubmitFcat.onclick = async () => {
+      const title = fcatTitleInput?.value?.trim();
+      if (!title) {
+        alert('Укажите название категории');
+        return;
+      }
+
+      const id = btnSubmitFcat.getAttribute('data-id');
+      const isEdit = Boolean(id);
+      const payload = {
+        title,
+        description: fcatDescInput?.value?.trim() || '',
+        color: fcatColorText?.value || '#FF1F36',
+        icon: fcatIconInput?.value || 'folder',
+        display_order: parseInt(fcatOrderInput?.value) || 10
+      };
+
+      try {
+        btnSubmitFcat.disabled = true;
+        if (isEdit) {
+          await api.admin.updateForumCategory(id, payload);
+        } else {
+          await api.admin.createForumCategory(payload);
+        }
+
+        const catsRes = await api.categories.getAll();
+        state.categories = catsRes.categories || [];
+        state.forumCategories = catsRes.forumCategories || [];
+        notifyStateChange();
+        closeModal();
+        playSound('success');
+        router.resolve();
+      } catch (err) {
+        alert(err.message || 'Ошибка сохранения категории');
+        btnSubmitFcat.disabled = false;
+      }
+    };
+  }
+
+  // -----------------------------------------------------------
+  // Admin Section Modal Events & Live Preview
+  // -----------------------------------------------------------
+  const secTitleInput = document.getElementById('sec-input-title');
+  const secSlugInput = document.getElementById('sec-input-slug');
+  const secDescInput = document.getElementById('sec-input-desc');
+  const secFcatSelect = document.getElementById('sec-select-fcat');
+  const secParentSelect = document.getElementById('sec-select-parent');
+  const secIconInput = document.getElementById('sec-input-icon');
+
+  const secIconColorPicker = document.getElementById('sec-color-icon-picker');
+  const secIconColorText = document.getElementById('sec-color-icon-text');
+  const secIconBgText = document.getElementById('sec-color-icon-bg-text');
+
+  const secTitleColorPicker = document.getElementById('sec-color-title-picker');
+  const secTitleColorText = document.getElementById('sec-color-title-text');
+
+  const secDescColorPicker = document.getElementById('sec-color-desc-picker');
+  const secDescColorText = document.getElementById('sec-color-desc-text');
+
+  const secBadgeTextInput = document.getElementById('sec-input-badge-text');
+  const secBadgeColorPicker = document.getElementById('sec-color-badge-picker');
+  const secBadgeColorText = document.getElementById('sec-color-badge-text');
+
+  const secRoleSelect = document.getElementById('sec-select-min-role');
+  const secOrderInput = document.getElementById('sec-input-order');
+  const secLockedInput = document.getElementById('sec-input-locked');
+  const btnSubmitSection = document.getElementById('btn-submit-section');
+
+  const pSecTitle = document.getElementById('preview-sec-title');
+  const pSecDesc = document.getElementById('preview-sec-desc');
+  const pSecIconBox = document.getElementById('preview-sec-icon-box');
+  const pSecBadge = document.getElementById('preview-sec-badge');
+  const pSecLocked = document.getElementById('preview-sec-locked');
+
+  function updateSectionLivePreview() {
+    if (pSecTitle && secTitleInput) {
+      pSecTitle.textContent = secTitleInput.value.trim() || 'Название раздела';
+      if (secTitleColorText) pSecTitle.style.color = secTitleColorText.value || '#FFFFFF';
+    }
+
+    if (pSecDesc && secDescInput) {
+      pSecDesc.textContent = secDescInput.value.trim() || 'Описание раздела появится здесь в реальном времени...';
+      if (secDescColorText) pSecDesc.style.color = secDescColorText.value || '#8E95A5';
+    }
+
+    if (pSecIconBox && secIconInput) {
+      const ic = secIconInput.value || 'message-square';
+      pSecIconBox.innerHTML = getIcon(ic);
+      const icColor = secIconColorText?.value || '#FF1F36';
+      const icBg = secIconBgText?.value || 'rgba(255, 31, 54, 0.12)';
+      pSecIconBox.style.color = icColor;
+      pSecIconBox.style.background = icBg;
+      pSecIconBox.style.boxShadow = `0 0 10px ${icColor}25`;
+    }
+
+    if (pSecBadge && secBadgeTextInput) {
+      const bText = secBadgeTextInput.value.trim();
+      if (bText) {
+        pSecBadge.style.display = 'inline-flex';
+        pSecBadge.textContent = bText;
+        pSecBadge.style.background = secBadgeColorText?.value || '#FF1F36';
+      } else {
+        pSecBadge.style.display = 'none';
+      }
+    }
+
+    if (pSecLocked && secLockedInput) {
+      pSecLocked.style.display = secLockedInput.checked ? 'inline-flex' : 'none';
+    }
+  }
+
+  if (secTitleInput) {
+    secTitleInput.oninput = () => {
+      if (secSlugInput && !secSlugInput.dataset.manual) {
+        const ru = {'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'e','ж':'zh','з':'z','и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'h','ц':'ts','ч':'ch','ш':'sh','щ':'sch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya'};
+        secSlugInput.value = secTitleInput.value.toLowerCase().split('').map(c => ru[c] || c).join('').replace(/[^a-z0-9_-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+      }
+      updateSectionLivePreview();
+    };
+  }
+
+  if (secSlugInput) {
+    secSlugInput.onkeydown = () => { secSlugInput.dataset.manual = 'true'; };
+  }
+
+  if (secDescInput) {
+    secDescInput.oninput = updateSectionLivePreview;
+  }
+
+  if (secLockedInput) {
+    secLockedInput.onchange = updateSectionLivePreview;
+  }
+
+  if (secBadgeTextInput) {
+    secBadgeTextInput.oninput = updateSectionLivePreview;
+  }
+
+  // Color Pickers <-> Text inputs linking
+  if (secIconColorPicker && secIconColorText) {
+    secIconColorPicker.oninput = () => {
+      secIconColorText.value = secIconColorPicker.value;
+      updateSectionLivePreview();
+    };
+    secIconColorText.oninput = () => {
+      if (secIconColorText.value.startsWith('#') && (secIconColorText.value.length === 4 || secIconColorText.value.length === 7)) {
+        secIconColorPicker.value = secIconColorText.value;
+      }
+      updateSectionLivePreview();
+    };
+  }
+
+  if (secIconBgText) {
+    secIconBgText.oninput = updateSectionLivePreview;
+  }
+
+  if (secTitleColorPicker && secTitleColorText) {
+    secTitleColorPicker.oninput = () => {
+      secTitleColorText.value = secTitleColorPicker.value;
+      updateSectionLivePreview();
+    };
+    secTitleColorText.oninput = () => {
+      if (secTitleColorText.value.startsWith('#') && (secTitleColorText.value.length === 4 || secTitleColorText.value.length === 7)) {
+        secTitleColorPicker.value = secTitleColorText.value;
+      }
+      updateSectionLivePreview();
+    };
+  }
+
+  if (secDescColorPicker && secDescColorText) {
+    secDescColorPicker.oninput = () => {
+      secDescColorText.value = secDescColorPicker.value;
+      updateSectionLivePreview();
+    };
+    secDescColorText.oninput = () => {
+      if (secDescColorText.value.startsWith('#') && (secDescColorText.value.length === 4 || secDescColorText.value.length === 7)) {
+        secDescColorPicker.value = secDescColorText.value;
+      }
+      updateSectionLivePreview();
+    };
+  }
+
+  if (secBadgeColorPicker && secBadgeColorText) {
+    secBadgeColorPicker.oninput = () => {
+      secBadgeColorText.value = secBadgeColorPicker.value;
+      updateSectionLivePreview();
+    };
+    secBadgeColorText.oninput = () => {
+      if (secBadgeColorText.value.startsWith('#') && (secBadgeColorText.value.length === 4 || secBadgeColorText.value.length === 7)) {
+        secBadgeColorPicker.value = secBadgeColorText.value;
+      }
+      updateSectionLivePreview();
+    };
+  }
+
+  // Section Swatches Click
+  document.querySelectorAll('[data-sec-target]').forEach(dot => {
+    dot.onclick = () => {
+      const target = dot.getAttribute('data-sec-target');
+      const c = dot.getAttribute('data-color');
+      if (target === 'icon') {
+        if (secIconColorPicker) secIconColorPicker.value = c;
+        if (secIconColorText) secIconColorText.value = c;
+      } else if (target === 'icon-bg') {
+        if (secIconBgText) secIconBgText.value = c;
+      } else if (target === 'title') {
+        if (secTitleColorPicker) secTitleColorPicker.value = c;
+        if (secTitleColorText) secTitleColorText.value = c;
+      } else if (target === 'desc') {
+        if (secDescColorPicker) secDescColorPicker.value = c;
+        if (secDescColorText) secDescColorText.value = c;
+      } else if (target === 'badge') {
+        if (secBadgeColorPicker) secBadgeColorPicker.value = c;
+        if (secBadgeColorText) secBadgeColorText.value = c;
+      }
+      updateSectionLivePreview();
+    };
+  });
+
+  // Section Icon Choices Click
+  document.querySelectorAll('[data-sec-icon]').forEach(btn => {
+    btn.onclick = () => {
+      const ic = btn.getAttribute('data-sec-icon');
+      if (secIconInput) secIconInput.value = ic;
+      document.querySelectorAll('[data-sec-icon]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateSectionLivePreview();
+    };
+  });
+
+  // Section Submit
+  if (btnSubmitSection) {
+    btnSubmitSection.onclick = async () => {
+      const title = secTitleInput?.value?.trim();
+      const slug = secSlugInput?.value?.trim();
+
+      if (!title) {
+        alert('Укажите название раздела');
+        return;
+      }
+      if (!slug) {
+        alert('Укажите URL-идентификатор (slug)');
+        return;
+      }
+
+      const id = btnSubmitSection.getAttribute('data-id');
+      const isEdit = Boolean(id);
+
+      const payload = {
+        forum_category_id: secFcatSelect?.value || null,
+        parent_id: secParentSelect?.value || null,
+        title,
+        slug,
+        description: secDescInput?.value?.trim() || '',
+        icon: secIconInput?.value || 'message-square',
+        icon_color: secIconColorText?.value || '#FF1F36',
+        icon_bg: secIconBgText?.value || 'rgba(255, 31, 54, 0.12)',
+        title_color: secTitleColorText?.value || '#FFFFFF',
+        description_color: secDescColorText?.value || '#8E95A5',
+        badge_text: secBadgeTextInput?.value?.trim() || null,
+        badge_color: secBadgeColorText?.value || '#FF1F36',
+        min_role_to_post: secRoleSelect?.value || 'player',
+        display_order: parseInt(secOrderInput?.value) || 0,
+        is_locked: secLockedInput?.checked ? 1 : 0
+      };
+
+      try {
+        btnSubmitSection.disabled = true;
+        if (isEdit) {
+          await api.admin.updateCategory(id, payload);
+        } else {
+          await api.admin.createCategory(payload);
+        }
+
+        const catsRes = await api.categories.getAll();
+        state.categories = catsRes.categories || [];
+        state.forumCategories = catsRes.forumCategories || [];
+        notifyStateChange();
+        closeModal();
+        playSound('success');
+        router.resolve();
+      } catch (err) {
+        alert(err.message || 'Ошибка сохранения раздела');
+        btnSubmitSection.disabled = false;
+      }
+    };
+  }
 }

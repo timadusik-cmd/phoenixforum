@@ -33,57 +33,244 @@ router.get('/stats', (req, res) => {
   }
 });
 
-// 2. Manage Categories (Create, Update, Delete) - requires admin
+// 2. Manage Forum Categories (Top-level groupings)
+router.get('/forum-categories', (req, res) => {
+  try {
+    const cats = db.prepare('SELECT * FROM forum_categories ORDER BY display_order ASC, created_at ASC').all();
+    res.json({ forumCategories: cats });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка загрузки категорий.' });
+  }
+});
+
+router.post('/forum-categories', requireRole('admin'), (req, res) => {
+  try {
+    const { title, description, icon, color, display_order } = req.body;
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Укажите название категории.' });
+    }
+    const id = 'fcat_' + Date.now();
+    db.prepare(`
+      INSERT INTO forum_categories (id, title, description, icon, color, display_order)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, title.trim(), description || '', icon || 'folder', color || '#FF1F36', display_order || 0);
+
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'create_forum_category', 'forum_category', ?, ?, ?)
+    `).run('log_' + Date.now(), req.user.id, id, `Создание категории: ${title}`, req.ip || '');
+
+    res.json({ message: 'Категория успешно создана!', id });
+  } catch (err) {
+    console.error('Error creating forum category:', err);
+    res.status(500).json({ error: 'Ошибка при создании категории.' });
+  }
+});
+
+router.put('/forum-categories/:id', requireRole('admin'), (req, res) => {
+  try {
+    const { title, description, icon, color, display_order, is_collapsed } = req.body;
+    db.prepare(`
+      UPDATE forum_categories
+      SET title = COALESCE(?, title),
+          description = COALESCE(?, description),
+          icon = COALESCE(?, icon),
+          color = COALESCE(?, color),
+          display_order = COALESCE(?, display_order),
+          is_collapsed = COALESCE(?, is_collapsed)
+      WHERE id = ?
+    `).run(title, description, icon, color, display_order, is_collapsed, req.params.id);
+
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'update_forum_category', 'forum_category', ?, ?, ?)
+    `).run('log_' + Date.now(), req.user.id, req.params.id, `Обновление категории: ${title || req.params.id}`, req.ip || '');
+
+    res.json({ message: 'Категория обновлена!' });
+  } catch (err) {
+    console.error('Error updating forum category:', err);
+    res.status(500).json({ error: 'Ошибка обновления категории.' });
+  }
+});
+
+router.delete('/forum-categories/:id', requireRole('admin'), (req, res) => {
+  try {
+    // Unlink any sections in this category
+    db.prepare('UPDATE categories SET forum_category_id = NULL WHERE forum_category_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM forum_categories WHERE id = ?').run(req.params.id);
+
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'delete_forum_category', 'forum_category', ?, ?, ?)
+    `).run('log_' + Date.now(), req.user.id, req.params.id, `Удаление категории`, req.ip || '');
+
+    res.json({ message: 'Категория удалена.' });
+  } catch (err) {
+    console.error('Error deleting forum category:', err);
+    res.status(500).json({ error: 'Ошибка при удалении категории.' });
+  }
+});
+
+router.post('/forum-categories/reorder', requireRole('admin'), (req, res) => {
+  try {
+    const { order } = req.body;
+    if (Array.isArray(order)) {
+      const updateStmt = db.prepare('UPDATE forum_categories SET display_order = ? WHERE id = ?');
+      order.forEach((id, idx) => updateStmt.run(idx + 1, id));
+    }
+    res.json({ message: 'Порядок категорий сохранён!' });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка изменения порядка категорий.' });
+  }
+});
+
+// 2.1 Manage Sections (Разделы форума с глубокой кастомизацией)
 router.post('/categories', requireRole('admin'), (req, res) => {
   try {
-    const { title, slug, description, icon, display_order, min_role_to_post } = req.body;
+    const {
+      forum_category_id, parent_id, slug, title, description,
+      icon, icon_color, icon_bg, title_color, description_color,
+      badge_text, badge_color, display_order, is_locked,
+      min_role_to_view, min_role_to_post
+    } = req.body;
+
     if (!title || !slug) {
       return res.status(400).json({ error: 'Укажите название и URL-идентификатор (slug).' });
     }
 
     const catId = 'cat_' + Date.now();
     db.prepare(`
-      INSERT INTO categories (id, slug, title, description, icon, display_order, min_role_to_post)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(catId, slug.toLowerCase().trim(), title.trim(), description || '', icon || 'forum', display_order || 0, min_role_to_post || 'player');
+      INSERT INTO categories (
+        id, forum_category_id, parent_id, slug, title, description,
+        icon, icon_color, icon_bg, title_color, description_color,
+        badge_text, badge_color, display_order, is_locked,
+        min_role_to_view, min_role_to_post
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      catId,
+      forum_category_id || null,
+      parent_id || null,
+      slug.toLowerCase().trim(),
+      title.trim(),
+      description || '',
+      icon || 'forum',
+      icon_color || '#FF1F36',
+      icon_bg || 'rgba(255, 31, 54, 0.12)',
+      title_color || '#FFFFFF',
+      description_color || '#8E95A5',
+      badge_text ? badge_text.trim() : null,
+      badge_color || '#FF1F36',
+      parseInt(display_order) || 0,
+      is_locked ? 1 : 0,
+      min_role_to_view || 'all',
+      min_role_to_post || 'player'
+    );
 
     db.prepare(`
       INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
       VALUES (?, ?, 'create_category', 'category', ?, ?, ?)
     `).run('log_' + Date.now(), req.user.id, catId, `Создание раздела: ${title}`, req.ip || '');
 
-    res.json({ message: 'Раздел успешно создан!' });
+    res.json({ message: 'Раздел успешно создан!', id: catId });
   } catch (err) {
     console.error('Error creating category:', err);
-    res.status(500).json({ error: 'Ошибка при создании раздела.' });
+    res.status(500).json({ error: err.message || 'Ошибка при создании раздела.' });
   }
 });
 
 router.put('/categories/:id', requireRole('admin'), (req, res) => {
   try {
-    const { title, slug, description, icon, display_order, min_role_to_post } = req.body;
+    const {
+      forum_category_id, parent_id, slug, title, description,
+      icon, icon_color, icon_bg, title_color, description_color,
+      badge_text, badge_color, display_order, is_locked,
+      min_role_to_view, min_role_to_post
+    } = req.body;
+
+    const existing = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Раздел не найден' });
+    }
+
+    const updatedForumCatId = forum_category_id !== undefined ? (forum_category_id || null) : existing.forum_category_id;
+    const updatedParentId = parent_id !== undefined ? (parent_id || null) : existing.parent_id;
+    const updatedSlug = slug ? slug.toLowerCase().trim() : existing.slug;
+    const updatedTitle = title ? title.trim() : existing.title;
+    const updatedDescription = description !== undefined ? description : existing.description;
+    const updatedIcon = icon !== undefined ? icon : existing.icon;
+    const updatedIconColor = icon_color !== undefined ? icon_color : existing.icon_color;
+    const updatedIconBg = icon_bg !== undefined ? icon_bg : existing.icon_bg;
+    const updatedTitleColor = title_color !== undefined ? title_color : existing.title_color;
+    const updatedDescriptionColor = description_color !== undefined ? description_color : existing.description_color;
+    const updatedBadgeText = badge_text !== undefined ? (badge_text ? badge_text.trim() : null) : existing.badge_text;
+    const updatedBadgeColor = badge_color !== undefined ? badge_color : existing.badge_color;
+    const updatedDisplayOrder = display_order !== undefined ? (parseInt(display_order) || 0) : existing.display_order;
+    const updatedIsLocked = is_locked !== undefined ? (is_locked ? 1 : 0) : existing.is_locked;
+    const updatedMinRoleToView = min_role_to_view !== undefined ? min_role_to_view : existing.min_role_to_view;
+    const updatedMinRoleToPost = min_role_to_post !== undefined ? min_role_to_post : existing.min_role_to_post;
 
     db.prepare(`
       UPDATE categories 
-      SET title = COALESCE(?, title),
-          slug = COALESCE(?, slug),
-          description = COALESCE(?, description),
-          icon = COALESCE(?, icon),
-          display_order = COALESCE(?, display_order),
-          min_role_to_post = COALESCE(?, min_role_to_post)
+      SET forum_category_id = ?,
+          parent_id = ?,
+          slug = ?,
+          title = ?,
+          description = ?,
+          icon = ?,
+          icon_color = ?,
+          icon_bg = ?,
+          title_color = ?,
+          description_color = ?,
+          badge_text = ?,
+          badge_color = ?,
+          display_order = ?,
+          is_locked = ?,
+          min_role_to_view = ?,
+          min_role_to_post = ?
       WHERE id = ?
-    `).run(title, slug, description, icon, display_order, min_role_to_post, req.params.id);
+    `).run(
+      updatedForumCatId,
+      updatedParentId,
+      updatedSlug,
+      updatedTitle,
+      updatedDescription,
+      updatedIcon,
+      updatedIconColor,
+      updatedIconBg,
+      updatedTitleColor,
+      updatedDescriptionColor,
+      updatedBadgeText,
+      updatedBadgeColor,
+      updatedDisplayOrder,
+      updatedIsLocked,
+      updatedMinRoleToView,
+      updatedMinRoleToPost,
+      req.params.id
+    );
+
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'update_category', 'category', ?, ?, ?)
+    `).run('log_' + Date.now(), req.user.id, req.params.id, `Обновление раздела: ${updatedTitle}`, req.ip || '');
 
     res.json({ message: 'Раздел успешно обновлён.' });
   } catch (err) {
     console.error('Error updating category:', err);
-    res.status(500).json({ error: 'Ошибка при обновлении раздела.' });
+    res.status(500).json({ error: err.message || 'Ошибка при обновлении раздела.' });
   }
 });
 
 router.delete('/categories/:id', requireRole('admin'), (req, res) => {
   try {
+    // Also unlink sub-sections
+    db.prepare('UPDATE categories SET parent_id = NULL WHERE parent_id = ?').run(req.params.id);
     db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
+
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'delete_category', 'category', ?, ?, ?)
+    `).run('log_' + Date.now(), req.user.id, req.params.id, `Удаление раздела`, req.ip || '');
+
     res.json({ message: 'Раздел удалён.' });
   } catch (err) {
     console.error('Error deleting category:', err);

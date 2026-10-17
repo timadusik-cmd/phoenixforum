@@ -21,7 +21,110 @@ export function renderHeroBanner() {
   `;
 }
 
+function renderSectionCard(cat) {
+  let lastMsgHtml = `
+    <div class="last-msg-empty">
+      <span>Тем пока нет</span>
+    </div>
+  `;
+
+  if (cat.lastMessage) {
+    const dateStr = formatTimeAgo(cat.lastMessage.createdAt);
+    lastMsgHtml = `
+      <div class="category-last-msg-card">
+        <img src="${cat.lastMessage.authorAvatar || '/assets/avatar_ivan.jpg'}" alt="${cat.lastMessage.authorName}" class="last-msg-avatar" />
+        <div class="last-msg-details">
+          <a href="/forum/thread/${cat.lastMessage.threadId}" data-link class="last-msg-topic">
+            ${cat.lastMessage.threadTitle}
+          </a>
+          <div class="last-msg-meta">
+            <span class="last-msg-author">${cat.lastMessage.authorName}</span>
+            <span class="meta-dot">•</span>
+            <span class="last-msg-time">${dateStr}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  const iconColor = cat.icon_color || '#FF1F36';
+  const iconBg = cat.icon_bg || 'rgba(255, 31, 54, 0.12)';
+  const titleColor = cat.title_color || '#FFFFFF';
+  const descColor = cat.description_color || '#8E95A5';
+
+  const subSectionsHtml = (cat.subSections && cat.subSections.length > 0) ? `
+    <div class="sub-sections-row">
+      <span class="sub-sections-label">↳</span>
+      ${cat.subSections.map(sub => `
+        <a href="/forum/category/${sub.slug}" data-link class="sub-section-chip" style="--sub-color: ${sub.icon_color || '#FF1F36'};">
+          <span class="sub-chip-icon">${getIcon(sub.icon)}</span>
+          <span class="sub-chip-title">${sub.title}</span>
+          ${sub.badge_text ? `<span class="sub-chip-badge" style="background: ${sub.badge_color || '#FF1F36'};">${sub.badge_text}</span>` : ''}
+        </a>
+      `).join('')}
+    </div>
+  ` : '';
+
+  return `
+    <div class="category-card" style="--card-accent: ${iconColor};">
+      <!-- Left: Icon & Info -->
+      <div class="category-main-col">
+        <div class="category-icon-box" style="background: ${iconBg}; color: ${iconColor}; box-shadow: 0 0 12px ${iconColor}25;">
+          ${getIcon(cat.icon)}
+        </div>
+        <div class="category-info">
+          <div class="category-title-row">
+            <a href="/forum/category/${cat.slug}" data-link class="category-title" style="color: ${titleColor};">
+              ${cat.title}
+            </a>
+            ${cat.badge_text ? `
+              <span class="section-custom-badge" style="background: ${cat.badge_color || '#FF1F36'};">
+                ${cat.badge_text}
+              </span>
+            ` : ''}
+            ${cat.is_locked ? `
+              <span class="section-locked-icon" title="Раздел только для чтения">${ICONS.lock}</span>
+            ` : ''}
+          </div>
+          <p class="category-desc" style="color: ${descColor};">${cat.description || ''}</p>
+          ${subSectionsHtml}
+        </div>
+      </div>
+
+      <!-- Center: Stats (Topics & Posts) -->
+      <div class="category-stats-col">
+        <div class="cat-stat-block">
+          <div class="cat-stat-val">
+            ${ICONS.chatBubble}
+            <span>${cat.threads_count || 0}</span>
+          </div>
+          <span class="cat-stat-lbl">Темы</span>
+        </div>
+        <div class="cat-stat-block">
+          <div class="cat-stat-val">
+            ${ICONS.docText}
+            <span>${cat.posts_count || 0}</span>
+          </div>
+          <span class="cat-stat-lbl">Сообщения</span>
+        </div>
+      </div>
+
+      <!-- Right: Last Message & Arrow -->
+      <div class="category-right-col">
+        ${lastMsgHtml}
+        <a href="/forum/category/${cat.slug}" data-link class="category-arrow-link" title="Перейти в раздел">
+          ${ICONS.chevronRight}
+        </a>
+      </div>
+    </div>
+  `;
+}
+
 export function renderHomeForum() {
+  const forumCategories = (state.forumCategories && state.forumCategories.length > 0)
+    ? state.forumCategories
+    : [{ id: 'fcat_all', title: 'Разделы форума', icon: 'folder', color: '#FF1F36', sections: state.categories }];
+
   return `
     <div class="forum-main">
       <!-- Action Row: Breadcrumbs, Section Title & Create Topic Button -->
@@ -41,74 +144,30 @@ export function renderHomeForum() {
         </a>
       </div>
 
-      <!-- Categories Cards List (Exact Match to New Reference) -->
-      <div class="categories-cards-list">
-        ${state.categories.map(cat => {
-          let lastMsgHtml = `
-            <div class="last-msg-empty">
-              <span>Тем пока нет</span>
-            </div>
-          `;
-
-          if (cat.lastMessage) {
-            const dateStr = formatTimeAgo(cat.lastMessage.createdAt);
-
-            lastMsgHtml = `
-              <div class="category-last-msg-card">
-                <img src="${cat.lastMessage.authorAvatar || '/assets/avatar_ivan.jpg'}" alt="${cat.lastMessage.authorName}" class="last-msg-avatar" />
-                <div class="last-msg-details">
-                  <a href="/forum/thread/${cat.lastMessage.threadId}" data-link class="last-msg-topic">
-                    ${cat.lastMessage.threadTitle}
-                  </a>
-                  <div class="last-msg-meta">
-                    <span class="last-msg-author">${cat.lastMessage.authorName}</span>
-                    <span class="meta-dot">•</span>
-                    <span class="last-msg-time">${dateStr}</span>
-                  </div>
-                </div>
-              </div>
-            `;
-          }
-
+      <!-- Forum Categories Grouped Blocks -->
+      <div class="forum-categories-wrapper">
+        ${forumCategories.map(fc => {
+          const sections = fc.sections || [];
           return `
-            <div class="category-card">
-              <!-- Left: Icon & Info -->
-              <div class="category-main-col">
-                <div class="category-icon-box">
-                  ${getIcon(cat.icon)}
+            <div class="forum-category-block" id="block-${fc.id}" style="--fcat-color: ${fc.color || '#FF1F36'};">
+              <div class="forum-category-header">
+                <div class="fcat-header-left">
+                  <span class="fcat-accent-bar" style="background: ${fc.color || '#FF1F36'};"></span>
+                  <span class="fcat-icon" style="color: ${fc.color || '#FF1F36'};">${getIcon(fc.icon)}</span>
+                  <h3 class="fcat-title">${fc.title}</h3>
+                  ${fc.description ? `<span class="fcat-desc">${fc.description}</span>` : ''}
                 </div>
-                <div class="category-info">
-                  <a href="/forum/category/${cat.slug}" data-link class="category-title">
-                    ${cat.title}
-                  </a>
-                  <p class="category-desc">${cat.description || ''}</p>
-                </div>
-              </div>
-
-              <!-- Center: Stats (Topics & Posts) -->
-              <div class="category-stats-col">
-                <div class="cat-stat-block">
-                  <div class="cat-stat-val">
-                    ${ICONS.chatBubble}
-                    <span>${cat.threads_count || 0}</span>
-                  </div>
-                  <span class="cat-stat-lbl">Темы</span>
-                </div>
-                <div class="cat-stat-block">
-                  <div class="cat-stat-val">
-                    ${ICONS.docText}
-                    <span>${cat.posts_count || 0}</span>
-                  </div>
-                  <span class="cat-stat-lbl">Сообщения</span>
+                <div class="fcat-header-right">
+                  <span class="fcat-count-badge">${sections.length} ${sections.length === 1 ? 'раздел' : (sections.length < 5 ? 'раздела' : 'разделов')}</span>
                 </div>
               </div>
 
-              <!-- Right: Last Message & Arrow -->
-              <div class="category-right-col">
-                ${lastMsgHtml}
-                <a href="/forum/category/${cat.slug}" data-link class="category-arrow-link" title="Перейти в раздел">
-                  ${ICONS.chevronRight}
-                </a>
+              <div class="categories-cards-list">
+                ${sections.length > 0 ? sections.map(cat => renderSectionCard(cat)).join('') : `
+                  <div class="empty-category-notice">
+                    <span>В этой категории пока нет созданных разделов</span>
+                  </div>
+                `}
               </div>
             </div>
           `;

@@ -9,6 +9,7 @@ export function renderAdminPanel(data = {}) {
     stats = {}, 
     reports = [], 
     categories = [], 
+    forumCategories = [],
     users = [], 
     customBadges = [], 
     auditLogs = [] 
@@ -131,35 +132,199 @@ export function renderAdminPanel(data = {}) {
         </div>
       ` : ''}
 
-      <!-- Tab 3: Categories -->
+      <!-- Tab 3: Categories & Sections Management -->
       ${activeTab === 'categories' ? `
         <div class="admin-section-card">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h3 style="color: #FFF; font-size: 16px;">Управление разделами форума</h3>
-            <button class="btn-create-topic" id="btn-open-create-category" style="padding: 6px 14px; font-size: 12px;">
-              ${ICONS.plus} Добавить раздел
-            </button>
+          <!-- Top Header Bar -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid #1C222E; padding-bottom: 16px;">
+            <div>
+              <h3 style="color: #FFF; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                ${ICONS.folder} <span>Управление категориями и разделами форума</span>
+              </h3>
+              <p style="font-size: 12.5px; color: #8A96A6; margin-top: 3px;">
+                Создавайте категории, группируйте разделы и подразделы, настраивайте уникальные цвета, иконки, бейджи и права доступа.
+              </p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <button class="btn-secondary" id="btn-open-create-fcat" style="padding: 7px 14px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                ${ICONS.folder} <span>+ Создать категорию</span>
+              </button>
+              <button class="btn-create-topic" id="btn-open-create-section" style="padding: 7px 16px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                ${ICONS.plus} <span>+ Добавить раздел</span>
+              </button>
+            </div>
           </div>
 
-          <div class="admin-categories-list">
-            ${categories.map(cat => `
-              <div class="admin-category-row" id="cat-row-${cat.id}">
-                <div class="admin-cat-icon">${getIcon(cat.icon)}</div>
-                <div class="admin-cat-info">
-                  <div class="admin-cat-title">${cat.title}</div>
-                  <div class="admin-cat-desc">${cat.description || 'Без описания'}</div>
-                  <div class="admin-cat-slug">URL: <code>/forum/category/${cat.slug}</code> • Доступ: <strong>${cat.min_role_to_post || 'player'}</strong></div>
+          <!-- Categories and Sections Hierarchy List -->
+          <div class="admin-categories-hierarchy">
+            ${forumCategories.length > 0 ? forumCategories.map(fc => {
+              const sections = fc.sections || [];
+              return `
+                <div class="admin-catgroup-card" id="fcat-card-${fc.id}" style="--catgroup-color: ${fc.color || '#FF1F36'};">
+                  <!-- Category Header -->
+                  <div class="admin-catgroup-header">
+                    <div class="admin-catgroup-header-left">
+                      <span class="admin-catgroup-accent-bar" style="background: ${fc.color || '#FF1F36'};"></span>
+                      <div class="admin-catgroup-icon" style="color: ${fc.color || '#FF1F36'};">
+                        ${getIcon(fc.icon)}
+                      </div>
+                      <div>
+                        <div class="admin-catgroup-title-row">
+                          <h4 class="admin-catgroup-title">${fc.title}</h4>
+                          <span class="admin-catgroup-count-badge">${sections.length} ${sections.length === 1 ? 'раздел' : (sections.length < 5 ? 'раздела' : 'разделов')}</span>
+                          <span class="admin-catgroup-order-tag">#${fc.display_order ?? 10}</span>
+                        </div>
+                        ${fc.description ? `<p class="admin-catgroup-desc">${fc.description}</p>` : ''}
+                      </div>
+                    </div>
+
+                    <div class="admin-catgroup-actions">
+                      <button class="btn-secondary" data-action="add-section-to-cat" data-fcat-id="${fc.id}" data-fcat-title="${fc.title}" style="padding: 5px 10px; font-size: 11.5px;">
+                        ${ICONS.plus} Раздел
+                      </button>
+                      <button class="btn-secondary" data-action="edit-fcat" data-id="${fc.id}" style="padding: 5px 10px; font-size: 11.5px;" title="Редактировать категорию">
+                        ${ICONS.pencil}
+                      </button>
+                      <button class="btn-secondary danger" data-action="delete-fcat" data-id="${fc.id}" data-title="${fc.title}" style="padding: 5px 10px; font-size: 11.5px;" title="Удалить категорию">
+                        ${ICONS.trash}
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Sections within this Category -->
+                  <div class="admin-catgroup-sections">
+                    ${sections.length > 0 ? sections.map(cat => {
+                      const iconColor = cat.icon_color || '#FF1F36';
+                      const iconBg = cat.icon_bg || 'rgba(255, 31, 54, 0.12)';
+                      const titleColor = cat.title_color || '#FFFFFF';
+                      const descColor = cat.description_color || '#8E95A5';
+                      const subSections = cat.subSections || [];
+
+                      return `
+                        <div class="admin-section-item-row" id="section-row-${cat.id}">
+                          <div class="admin-section-main-info">
+                            <div class="admin-section-icon-box" style="background: ${iconBg}; color: ${iconColor}; box-shadow: 0 0 10px ${iconColor}20;">
+                              ${getIcon(cat.icon)}
+                            </div>
+                            <div class="admin-section-text-info">
+                              <div class="admin-section-title-line">
+                                <span class="admin-section-title" style="color: ${titleColor};">${cat.title}</span>
+                                ${cat.badge_text ? `
+                                  <span class="section-custom-badge" style="background: ${cat.badge_color || '#FF1F36'};">
+                                    ${cat.badge_text}
+                                  </span>
+                                ` : ''}
+                                ${cat.is_locked ? `
+                                  <span class="admin-locked-pill" title="Создание тем отключено">${ICONS.lock} Закрыт</span>
+                                ` : ''}
+                              </div>
+                              <p class="admin-section-desc" style="color: ${descColor};">${cat.description || 'Без описания'}</p>
+                              
+                              <div class="admin-section-meta-row">
+                                <span>URL: <code>/forum/category/${cat.slug}</code></span>
+                                <span>Доступ к темам: <strong>${cat.min_role_to_post || 'player'}</strong></span>
+                                <span>Сортировка: <strong>#${cat.display_order || 0}</strong></span>
+                              </div>
+
+                              <!-- Subsections Chips -->
+                              ${subSections.length > 0 ? `
+                                <div class="admin-subsections-chips-row">
+                                  <span style="font-size: 11px; color: #8A96A6;">↳ Подразделы:</span>
+                                  ${subSections.map(sub => `
+                                    <div class="admin-sub-chip" style="--sub-c: ${sub.icon_color || '#FF1F36'};">
+                                      <span>${getIcon(sub.icon)}</span>
+                                      <span style="color: ${sub.title_color || '#FFF'};">${sub.title}</span>
+                                      ${sub.badge_text ? `<span class="sub-chip-badge" style="background: ${sub.badge_color || '#FF1F36'};">${sub.badge_text}</span>` : ''}
+                                      <button type="button" class="btn-sub-chip-edit" data-action="edit-section" data-id="${sub.id}" title="Настроить подраздел">✏️</button>
+                                      <button type="button" class="btn-sub-chip-del" data-action="delete-section" data-id="${sub.id}" data-title="${sub.title}" title="Удалить подраздел">✕</button>
+                                    </div>
+                                  `).join('')}
+                                </div>
+                              ` : ''}
+                            </div>
+                          </div>
+
+                          <div class="admin-section-actions">
+                            <button class="btn-secondary" data-action="add-subsection" data-parent-id="${cat.id}" data-fcat-id="${fc.id}" data-parent-title="${cat.title}" style="padding: 6px 10px; font-size: 11.5px;" title="Добавить подраздел внутрь этого раздела">
+                              ${ICONS.plus} Подраздел
+                            </button>
+                            <button class="btn-secondary" data-action="edit-section" data-id="${cat.id}" style="padding: 6px 12px; font-size: 12px;">
+                              ${ICONS.pencil} Настроить
+                            </button>
+                            <button class="btn-secondary danger" data-action="delete-section" data-id="${cat.id}" data-title="${cat.title}" style="padding: 6px 10px; font-size: 12px;" title="Удалить раздел">
+                              ${ICONS.trash}
+                            </button>
+                          </div>
+                        </div>
+                      `;
+                    }).join('') : `
+                      <div class="admin-empty-fcat-notice">
+                        <p>В этой категории пока нет разделов.</p>
+                        <button class="btn-secondary" data-action="add-section-to-cat" data-fcat-id="${fc.id}" data-fcat-title="${fc.title}" style="margin-top: 8px; font-size: 11.5px; padding: 5px 12px;">
+                          ${ICONS.plus} Добавить первый раздел
+                        </button>
+                      </div>
+                    `}
+                  </div>
                 </div>
-                <div class="admin-cat-actions">
-                  <button class="btn-secondary" data-action="edit-category" data-id="${cat.id}" style="padding: 6px 12px; font-size: 12px;">
-                    ${ICONS.pencil} Редактировать
-                  </button>
-                  <button class="btn-secondary danger" data-action="delete-category" data-id="${cat.id}" style="padding: 6px 12px; font-size: 12px;">
-                    ${ICONS.trash} Удалить
-                  </button>
-                </div>
+              `;
+            }).join('') : `
+              <div class="empty-threads-card">
+                <p>Категории форума ещё не созданы. Нажмите «+ Создать категорию» выше!</p>
               </div>
-            `).join('')}
+            `}
+
+            <!-- Uncategorized Sections (if any exist) -->
+            ${(() => {
+              const uncategorized = categories.filter(c => !c.forum_category_id && !c.parent_id);
+              if (uncategorized.length === 0) return '';
+              return `
+                <div class="admin-catgroup-card" style="--catgroup-color: #64748B; margin-top: 24px;">
+                  <div class="admin-catgroup-header">
+                    <div class="admin-catgroup-header-left">
+                      <span class="admin-catgroup-accent-bar" style="background: #64748B;"></span>
+                      <div class="admin-catgroup-icon" style="color: #64748B;">${ICONS.folder}</div>
+                      <div>
+                        <div class="admin-catgroup-title-row">
+                          <h4 class="admin-catgroup-title">Разделы без категории</h4>
+                          <span class="admin-catgroup-count-badge">${uncategorized.length}</span>
+                        </div>
+                        <p class="admin-catgroup-desc">Эти разделы ещё не привязаны ни к одной категории форума. Отредактируйте их, чтобы назначить категорию.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="admin-catgroup-sections">
+                    ${uncategorized.map(cat => `
+                      <div class="admin-section-item-row" id="section-row-${cat.id}">
+                        <div class="admin-section-main-info">
+                          <div class="admin-section-icon-box" style="background: ${cat.icon_bg || 'rgba(255, 31, 54, 0.12)'}; color: ${cat.icon_color || '#FF1F36'};">
+                            ${getIcon(cat.icon)}
+                          </div>
+                          <div class="admin-section-text-info">
+                            <div class="admin-section-title-line">
+                              <span class="admin-section-title" style="color: ${cat.title_color || '#FFF'};">${cat.title}</span>
+                              ${cat.badge_text ? `<span class="section-custom-badge" style="background: ${cat.badge_color || '#FF1F36'};">${cat.badge_text}</span>` : ''}
+                            </div>
+                            <p class="admin-section-desc">${cat.description || 'Без описания'}</p>
+                            <div class="admin-section-meta-row">
+                              <span>URL: <code>/forum/category/${cat.slug}</code></span>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="admin-section-actions">
+                          <button class="btn-secondary" data-action="edit-section" data-id="${cat.id}" style="padding: 6px 12px; font-size: 12px;">
+                            ${ICONS.pencil} Настроить
+                          </button>
+                          <button class="btn-secondary danger" data-action="delete-section" data-id="${cat.id}" data-title="${cat.title}" style="padding: 6px 10px; font-size: 12px;">
+                            ${ICONS.trash}
+                          </button>
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              `;
+            })()}
           </div>
         </div>
       ` : ''}

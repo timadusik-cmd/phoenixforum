@@ -93,6 +93,7 @@ router.addRoute('/forum', async () => {
   try {
     const res = await api.categories.getAll();
     state.categories = res.categories || [];
+    state.forumCategories = res.forumCategories || [];
     renderAppShell(renderHomeForum(), { topBanner: renderHeroBanner() });
   } catch (err) {
     renderAppShell(`<div class="empty-threads-card"><h3>Ошибка загрузки:</h3><p>${err.message}</p></div>`, { topBanner: renderHeroBanner() });
@@ -285,6 +286,10 @@ router.addRoute('/admin', async (params, query) => {
     if (tab === 'reports') {
       const repData = await api.reports.getReports('pending');
       reports = repData.reports || [];
+    } else if (tab === 'categories') {
+      const catsRes = await api.categories.getAll().catch(() => ({ categories: [], forumCategories: [] }));
+      state.categories = catsRes.categories || [];
+      state.forumCategories = catsRes.forumCategories || [];
     } else if (tab === 'users') {
       const [uData, cbData] = await Promise.all([
         api.users.getMembers({ limit: 50 }),
@@ -305,6 +310,7 @@ router.addRoute('/admin', async (params, query) => {
       stats: statsData.stats || {},
       reports,
       categories: state.categories,
+      forumCategories: state.forumCategories || [],
       users,
       customBadges,
       auditLogs
@@ -1247,6 +1253,118 @@ function attachGlobalEvents() {
       }
     };
   });
+
+  // -------------------------------------------------------------
+  // Forum Categories & Sections Admin Management
+  // -------------------------------------------------------------
+  const btnOpenCreateFcat = document.getElementById('btn-open-create-fcat');
+  if (btnOpenCreateFcat) {
+    btnOpenCreateFcat.onclick = () => {
+      openModal('adminCategory', { mode: 'create' });
+    };
+  }
+
+  const btnOpenCreateSection = document.getElementById('btn-open-create-section');
+  if (btnOpenCreateSection) {
+    btnOpenCreateSection.onclick = () => {
+      openModal('adminSection', {
+        mode: 'create',
+        forumCategories: state.forumCategories || [],
+        categories: state.categories || []
+      });
+    };
+  }
+
+  document.querySelectorAll('[data-action="add-section-to-cat"]').forEach(btn => {
+    btn.onclick = () => {
+      const fcatId = btn.getAttribute('data-fcat-id');
+      openModal('adminSection', {
+        mode: 'create',
+        defaultFcatId: fcatId,
+        forumCategories: state.forumCategories || [],
+        categories: state.categories || []
+      });
+    };
+  });
+
+  document.querySelectorAll('[data-action="add-subsection"]').forEach(btn => {
+    btn.onclick = () => {
+      const parentId = btn.getAttribute('data-parent-id');
+      const fcatId = btn.getAttribute('data-fcat-id');
+      openModal('adminSection', {
+        mode: 'create',
+        defaultParentId: parentId,
+        defaultFcatId: fcatId,
+        forumCategories: state.forumCategories || [],
+        categories: state.categories || []
+      });
+    };
+  });
+
+  document.querySelectorAll('[data-action="edit-fcat"]').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.getAttribute('data-id');
+      const cat = (state.forumCategories || []).find(c => c.id === id);
+      if (cat) {
+        openModal('adminCategory', { mode: 'edit', category: cat });
+      }
+    };
+  });
+
+  document.querySelectorAll('[data-action="delete-fcat"]').forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.getAttribute('data-id');
+      const title = btn.getAttribute('data-title') || 'эту категорию';
+      if (!confirm(`Вы действительно хотите удалить категорию «${title}»? Все её разделы останутся сохранены и перейдут в «Разделы без категории».`)) return;
+
+      try {
+        const res = await api.admin.deleteForumCategory(id);
+        showToast(res.message);
+        const catsRes = await api.categories.getAll();
+        state.categories = catsRes.categories || [];
+        state.forumCategories = catsRes.forumCategories || [];
+        notifyStateChange();
+        router.resolve();
+      } catch (err) {
+        alert(err.message || 'Ошибка удаления категории');
+      }
+    };
+  });
+
+  document.querySelectorAll('[data-action="edit-section"]').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.getAttribute('data-id');
+      const section = (state.categories || []).find(c => c.id === id);
+      if (section) {
+        openModal('adminSection', {
+          mode: 'edit',
+          section,
+          forumCategories: state.forumCategories || [],
+          categories: state.categories || []
+        });
+      }
+    };
+  });
+
+  document.querySelectorAll('[data-action="delete-section"]').forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.getAttribute('data-id');
+      const title = btn.getAttribute('data-title') || 'этот раздел';
+      if (!confirm(`Вы действительно хотите удалить раздел «${title}»? Все темы этого раздела сохранятся в базе данных.`)) return;
+
+      try {
+        const res = await api.admin.deleteCategory(id);
+        showToast(res.message);
+        const catsRes = await api.categories.getAll();
+        state.categories = catsRes.categories || [];
+        state.forumCategories = catsRes.forumCategories || [];
+        notifyStateChange();
+        router.resolve();
+      } catch (err) {
+        alert(err.message || 'Ошибка удаления раздела');
+      }
+    };
+  });
 }
 
 // -------------------------------------------------------------
@@ -1292,6 +1410,7 @@ async function initApp() {
       api.users.getOnlineStats().catch(() => null)
     ]);
     state.categories = catsRes.categories || [];
+    state.forumCategories = catsRes.forumCategories || [];
     state.recentThreads = recentsRes.threads || [];
     if (onlineRes) {
       state.onlineStats = onlineRes;

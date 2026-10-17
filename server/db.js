@@ -49,17 +49,40 @@ export function initDatabase() {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    -- 2. Categories Table
+    -- 2. Forum Categories Table (Top-level groupings)
+    CREATE TABLE IF NOT EXISTS forum_categories (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      icon TEXT DEFAULT 'folder',
+      color TEXT DEFAULT '#FF1F36',
+      display_order INTEGER DEFAULT 0,
+      is_collapsed INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 2.1 Sections / Categories Table
     CREATE TABLE IF NOT EXISTS categories (
       id TEXT PRIMARY KEY,
+      forum_category_id TEXT,
+      parent_id TEXT,
       slug TEXT UNIQUE NOT NULL,
       title TEXT NOT NULL,
       description TEXT,
       icon TEXT DEFAULT 'forum',
+      icon_color TEXT DEFAULT '#FF1F36',
+      icon_bg TEXT DEFAULT 'rgba(255, 31, 54, 0.12)',
+      title_color TEXT DEFAULT '#FFFFFF',
+      description_color TEXT DEFAULT '#8E95A5',
+      badge_text TEXT,
+      badge_color TEXT DEFAULT '#FF1F36',
       display_order INTEGER DEFAULT 0,
       is_locked INTEGER DEFAULT 0,
+      min_role_to_view TEXT DEFAULT 'all',
       min_role_to_post TEXT DEFAULT 'player',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (forum_category_id) REFERENCES forum_categories (id) ON DELETE SET NULL,
+      FOREIGN KEY (parent_id) REFERENCES categories (id) ON DELETE SET NULL
     );
 
     -- 3. Threads Table
@@ -256,10 +279,45 @@ export function initDatabase() {
   `);
 
   // Safe migrations for existing databases
+  try { db.prepare("ALTER TABLE users ADD COLUMN cover_banner TEXT DEFAULT '/assets/hero_banner.jpg'").run(); } catch {}
+
+  // Safe migrations for Forum Categories & Sections customization
+  try { db.prepare("ALTER TABLE categories ADD COLUMN forum_category_id TEXT").run(); } catch {}
+  try { db.prepare("ALTER TABLE categories ADD COLUMN parent_id TEXT").run(); } catch {}
+  try { db.prepare("ALTER TABLE categories ADD COLUMN icon_color TEXT DEFAULT '#FF1F36'").run(); } catch {}
+  try { db.prepare("ALTER TABLE categories ADD COLUMN icon_bg TEXT DEFAULT 'rgba(255, 31, 54, 0.12)'").run(); } catch {}
+  try { db.prepare("ALTER TABLE categories ADD COLUMN title_color TEXT DEFAULT '#FFFFFF'").run(); } catch {}
+  try { db.prepare("ALTER TABLE categories ADD COLUMN description_color TEXT DEFAULT '#8E95A5'").run(); } catch {}
+  try { db.prepare("ALTER TABLE categories ADD COLUMN badge_text TEXT").run(); } catch {}
+  try { db.prepare("ALTER TABLE categories ADD COLUMN badge_color TEXT DEFAULT '#FF1F36'").run(); } catch {}
+  try { db.prepare("ALTER TABLE categories ADD COLUMN min_role_to_view TEXT DEFAULT 'all'").run(); } catch {}
+
+  // Initialize standard forum categories if empty and link default sections
   try {
-    db.prepare("ALTER TABLE users ADD COLUMN cover_banner TEXT DEFAULT '/assets/hero_banner.jpg'").run();
-  } catch {
-    // Column already exists
+    const countForumCats = db.prepare('SELECT COUNT(*) as count FROM forum_categories').get().count;
+    if (countForumCats === 0) {
+      const insertFCat = db.prepare(`
+        INSERT INTO forum_categories (id, title, description, icon, color, display_order)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      insertFCat.run('fcat_main', 'Основной раздел', 'Официальные новости, регламент проекта и техническая поддержка', 'flame', '#FF1F36', 1);
+      insertFCat.run('fcat_server', 'Игровой процесс & Сервер Los Santos', 'RolePlay раздел, жалобы и торговая площадка', 'shield', '#0091FF', 2);
+      insertFCat.run('fcat_community', 'Общение и курилка', 'Свободные разговоры, знакомства, медиа и юмор', 'message-square', '#10B981', 3);
+
+      // Link default sections to categories and set custom colors & badges
+      db.prepare(`UPDATE categories SET forum_category_id = 'fcat_main', icon_color = '#FF1F36', icon_bg = 'rgba(255, 31, 54, 0.15)', badge_text = 'ВАЖНО', badge_color = '#FF1F36' WHERE id = 'cat_news'`).run();
+      db.prepare(`UPDATE categories SET forum_category_id = 'fcat_main', icon_color = '#0091FF', icon_bg = 'rgba(0, 145, 255, 0.15)', badge_text = 'РЕГЛАМЕНТ', badge_color = '#0091FF' WHERE id = 'cat_rules'`).run();
+      db.prepare(`UPDATE categories SET forum_category_id = 'fcat_main', icon_color = '#FF9800', icon_bg = 'rgba(255, 152, 0, 0.15)' WHERE id = 'cat_tech'`).run();
+      db.prepare(`UPDATE categories SET forum_category_id = 'fcat_server', icon_color = '#A855F7', icon_bg = 'rgba(168, 85, 247, 0.15)' WHERE id = 'cat_rp'`).run();
+      db.prepare(`UPDATE categories SET forum_category_id = 'fcat_server', icon_color = '#EF4444', icon_bg = 'rgba(239, 68, 68, 0.15)' WHERE id = 'cat_reports'`).run();
+      db.prepare(`UPDATE categories SET forum_category_id = 'fcat_server', icon_color = '#10B981', icon_bg = 'rgba(16, 185, 129, 0.15)', badge_text = 'РЫНОК', badge_color = '#10B981' WHERE id = 'cat_market'`).run();
+      db.prepare(`UPDATE categories SET forum_category_id = 'fcat_community', icon_color = '#06B6D4', icon_bg = 'rgba(6, 182, 212, 0.15)' WHERE id = 'cat_general'`).run();
+
+      // Ensure any other unlinked categories belong to fcat_main
+      db.prepare(`UPDATE categories SET forum_category_id = 'fcat_main' WHERE forum_category_id IS NULL`).run();
+    }
+  } catch (err) {
+    console.error('[Database Migration] Error initializing forum categories:', err);
   }
 
   // Ensure default custom badges and admin badges are present

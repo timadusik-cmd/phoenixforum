@@ -3,20 +3,28 @@ import db from '../db.js';
 
 const router = Router();
 
-// GET all categories with live counts and last message stats
+// GET all categories with live counts, forum categories hierarchy, and last message stats
 router.get('/', (req, res) => {
   try {
-    const categories = db.prepare(`
+    const forumCategories = db.prepare(`
+      SELECT * FROM forum_categories
+      ORDER BY display_order ASC, created_at ASC
+    `).all();
+
+    const sections = db.prepare(`
       SELECT c.*,
+             fc.title AS forum_category_title,
+             fc.color AS forum_category_color,
              (SELECT COUNT(*) FROM threads t WHERE t.category_id = c.id) AS threads_count,
              (SELECT COUNT(*) FROM posts p 
               JOIN threads t ON p.thread_id = t.id 
               WHERE t.category_id = c.id) AS posts_count
       FROM categories c
-      ORDER BY c.display_order ASC
+      LEFT JOIN forum_categories fc ON c.forum_category_id = fc.id
+      ORDER BY c.display_order ASC, c.created_at ASC
     `).all();
 
-    // Attach last message for each category
+    // Attach last message for each section
     const getLastMsg = db.prepare(`
       SELECT p.id, p.created_at, p.content, t.id as thread_id, t.title as thread_title,
              u.id as author_id, u.username as author_name, u.avatar as author_avatar
@@ -28,7 +36,7 @@ router.get('/', (req, res) => {
       LIMIT 1
     `);
 
-    const result = categories.map(cat => {
+    const sectionsWithLastMsg = sections.map(cat => {
       const lastMsg = getLastMsg.get(cat.id);
       return {
         ...cat,
@@ -43,7 +51,64 @@ router.get('/', (req, res) => {
       };
     });
 
-    res.json({ categories: result });
+    // Build hierarchy: Group sub-sections into parent sections
+    const subSectionsByParent = {};
+    const topLevelSections = [];
+
+    sectionsWithLastMsg.forEach(sec => {
+      if (sec.parent_id) {
+        if (!subSectionsByParent[sec.parent_id]) {
+          subSectionsByParent[sec.parent_id] = [];
+        }
+        subSectionsByParent[sec.parent_id].push(sec);
+      } else {
+        topLevelSections.push(sec);
+      }
+    });
+
+    topLevelSections.forEach(sec => {
+      sec.subSections = subSectionsByParent[sec.id] || [];
+    });
+
+    // Group top-level sections into forum categories
+    const sectionsByFCat = {};
+    topLevelSections.forEach(sec => {
+      const fCatId = sec.forum_category_id || 'fcat_main';
+      if (!sectionsByFCat[fCatId]) {
+        sectionsByFCat[fCatId] = [];
+      }
+      sectionsByFCat[fCatId].push(sec);
+    });
+
+    // If there are top-level forum categories
+    const groupedForumCategories = forumCategories.map(fc => ({
+      ...fc,
+      sections: sectionsByFCat[fc.id] || []
+    }));
+
+    // If there are orphaned sections that don't match any category, add to a fallback category
+    const knownCatIds = new Set(forumCategories.map(fc => fc.id));
+    const orphaned = topLevelSections.filter(sec => !sec.forum_category_id || !knownCatIds.has(sec.forum_category_id));
+    if (orphaned.length > 0) {
+      if (groupedForumCategories.length > 0) {
+        groupedForumCategories[0].sections.push(...orphaned);
+      } else {
+        groupedForumCategories.push({
+          id: 'fcat_default',
+          title: 'Основной раздел',
+          description: 'Разделы форума',
+          icon: 'folder',
+          color: '#FF1F36',
+          display_order: 1,
+          sections: orphaned
+        });
+      }
+    }
+
+    res.json({
+      categories: sectionsWithLastMsg,
+      forumCategories: groupedForumCategories
+    });
   } catch (err) {
     console.error('Error fetching categories:', err);
     res.status(500).json({ error: 'Не удалось загрузить разделы форума.' });
@@ -83,12 +148,18 @@ router.get('/:slug', (req, res) => {
       LIMIT ? OFFSET ?
     `).all(category.id, parseInt(limit), offset);
 
-    const totalThreads = db.prepare(`
-      SELECT COUNT(*) as count FROM threads t WHERE t.category_id = ? ${filterClause}
-    `).get(category.id).count;
+    const subSections = db.prepare(`
+      SELECT c.*,
+             (SELECT COUNT(*) FROM threads t WHERE t.category_id = c.id) AS threads_count,
+             (SELECT COUNT(*) FROM posts p JOIN threads t ON p.thread_id = t.id WHERE t.category_id = c.id) AS posts_count
+      FROM categories c
+      WHERE c.parent_id = ?
+      ORDER BY c.display_order ASC
+    `).all(category.id);
 
     res.json({
       category,
+      subSections,
       threads,
       pagination: {
         page: parseInt(page),

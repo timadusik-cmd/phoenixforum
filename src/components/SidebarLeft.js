@@ -22,10 +22,12 @@ export function renderSidebarLeft() {
 
         ${state.categories.map(cat => {
           const isActive = currentPath === `/forum/category/${cat.slug}`;
+          const iconColor = cat.icon_color || '#FF1F36';
+          const iconBg = cat.icon_bg || 'rgba(255, 31, 54, 0.12)';
           return `
-            <a href="/forum/category/${cat.slug}" data-link class="sidebar-menu-item ${isActive ? 'active' : ''}">
+            <a href="/forum/category/${cat.slug}" data-link class="sidebar-menu-item ${isActive ? 'active' : ''}" style="--item-accent: ${iconColor};">
               <div class="sidebar-menu-item-left">
-                <div class="menu-icon-square">
+                <div class="menu-icon-square" style="color: ${iconColor}; background: ${iconBg};">
                   ${getIcon(cat.icon)}
                 </div>
                 <span>${cat.title}</span>

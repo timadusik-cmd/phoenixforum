@@ -3,6 +3,7 @@
 export const state = {
   user: null,
   categories: [],
+  forumCategories: [],
   recentThreads: [],
   unreadNotifications: 0,
   unreadMessages: 0,

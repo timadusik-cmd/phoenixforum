@@ -34,7 +34,15 @@ export function renderCreateThread(selectedCategorySlug = null) {
             <div class="modal-field">
               <label>Раздел форума *</label>
               <select class="modal-select" id="thread-category" required>
-                ${state.categories.map(cat => `
+                ${(state.forumCategories && state.forumCategories.length > 0) ? state.forumCategories.map(fc => `
+                  <optgroup label="${fc.title}">
+                    ${(fc.sections || []).map(cat => `
+                      <option value="${cat.id}" ${cat.slug === selectedCategorySlug ? 'selected' : ''} ${cat.is_locked ? 'disabled' : ''}>
+                        ${cat.title} ${cat.is_locked ? '(Только для чтения)' : ''}
+                      </option>
+                    `).join('')}
+                  </optgroup>
+                `).join('') : state.categories.map(cat => `
                   <option value="${cat.id}" ${cat.slug === selectedCategorySlug ? 'selected' : ''}>
                     ${cat.title}
                   </option>

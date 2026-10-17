@@ -169,6 +169,14 @@ export const api = {
   // Admin
   admin: {
     getStats: () => request('/api/admin/stats'),
+    // Forum Categories (Top-level Groupings)
+    getForumCategories: () => request('/api/admin/forum-categories'),
+    createForumCategory: (data) => request('/api/admin/forum-categories', { method: 'POST', body: data }),
+    updateForumCategory: (id, data) => request(`/api/admin/forum-categories/${encodeURIComponent(id)}`, { method: 'PUT', body: data }),
+    deleteForumCategory: (id) => request(`/api/admin/forum-categories/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    reorderForumCategories: (order) => request('/api/admin/forum-categories/reorder', { method: 'POST', body: { order } }),
+
+    // Sections (Разделы)
     createCategory: (data) => request('/api/admin/categories', { method: 'POST', body: data }),
     updateCategory: (id, data) => request(`/api/admin/categories/${encodeURIComponent(id)}`, { method: 'PUT', body: data }),
     deleteCategory: (id) => request(`/api/admin/categories/${encodeURIComponent(id)}`, { method: 'DELETE' }),
