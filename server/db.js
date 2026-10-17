@@ -248,6 +248,7 @@ export function initDatabase() {
       glow TEXT DEFAULT 'rgba(255, 138, 0, 0.40)',
       icon TEXT DEFAULT 'crown',
       level INTEGER DEFAULT 1,
+      style TEXT DEFAULT 'classic',
       created_by TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE SET NULL
@@ -291,6 +292,7 @@ export function initDatabase() {
   try { db.prepare("ALTER TABLE categories ADD COLUMN badge_text TEXT").run(); } catch {}
   try { db.prepare("ALTER TABLE categories ADD COLUMN badge_color TEXT DEFAULT '#FF1F36'").run(); } catch {}
   try { db.prepare("ALTER TABLE categories ADD COLUMN min_role_to_view TEXT DEFAULT 'all'").run(); } catch {}
+  try { db.prepare("ALTER TABLE custom_badges ADD COLUMN style TEXT DEFAULT 'classic'").run(); } catch {}
 
   // Initialize standard forum categories if empty and link default sections
   try {

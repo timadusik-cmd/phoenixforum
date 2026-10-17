@@ -1102,9 +1102,10 @@ function attachGlobalEvents() {
       const level = parseInt(document.getElementById('custom-badge-level-input')?.value) || 1;
       const color = document.getElementById('custom-badge-color-input')?.value.trim() || '#FF1F36';
       const icon = document.getElementById('custom-badge-icon-input')?.value || 'crown';
+      const style = document.querySelector('input[name="custom-badge-style"]:checked')?.value || 'classic';
 
       try {
-        const res = await api.admin.createCustomBadge({ title, subtitle, key, level, color, icon });
+        const res = await api.admin.createCustomBadge({ title, subtitle, key, level, color, icon, style });
         showToast(res.message);
         if (res.badge) {
           registerCustomBadges([res.badge]);
@@ -1128,6 +1129,7 @@ function attachGlobalEvents() {
     const subtitle = subtitleInput ? (subtitleInput.value.trim() || 'Полицейский департамент') : 'Полицейский департамент';
     const color = colorInput ? (colorInput.value.trim() || '#0091FF') : '#0091FF';
     const icon = document.getElementById('custom-badge-icon-input')?.value || 'shield';
+    const style = document.querySelector('input[name="custom-badge-style"]:checked')?.value || 'classic';
     const previewNormal = document.getElementById('live-badge-preview-normal');
     const previewSidebar = document.getElementById('live-badge-preview-sidebar');
     const badgeObj = {
@@ -1136,11 +1138,16 @@ function attachGlobalEvents() {
       subtitle,
       color,
       glow: `rgba(0, 145, 255, 0.40)`,
-      icon
+      icon,
+      style
     };
     if (previewNormal) previewNormal.innerHTML = renderRoleBadge(badgeObj, { size: 'normal' });
     if (previewSidebar) previewSidebar.innerHTML = renderRoleBadge(badgeObj, { size: 'sidebar' });
   }
+
+  document.querySelectorAll('input[name="custom-badge-style"]').forEach(r => {
+    r.onchange = () => updateLiveCustomBadge();
+  });
 
   if (colorPicker && colorInput) {
     colorPicker.oninput = () => {

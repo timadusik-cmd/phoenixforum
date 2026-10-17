@@ -5827,6 +5827,196 @@ input, textarea, select {
   height: 28px !important;
 }
 
+/* ==========================================================
+   Variant 2: Neon Crystal Badge (using blue_btn.webp plate)
+   ========================================================== */
+.rp-role-badge.badge-style-neon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: url('/assets/blue_btn.webp') no-repeat center center / 100% 100%;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  min-height: auto;
+  box-sizing: border-box;
+  user-select: none;
+  transition: transform 0.18s ease, filter 0.18s ease;
+  overflow: visible;
+}
+
+.rp-role-badge.badge-style-neon:hover {
+  transform: translateY(-1.5px) scale(1.02);
+  filter: brightness(1.12) drop-shadow(0 0 10px rgba(56, 189, 248, 0.4));
+}
+
+.rp-role-badge.badge-style-neon.badge-normal {
+  width: 240px;
+  height: 68px;
+  padding: 8px 24px;
+}
+
+.rp-role-badge.badge-style-neon.badge-sidebar {
+  width: 100%;
+  max-width: 220px;
+  height: 58px;
+  padding: 6px 18px;
+}
+
+.rp-role-badge.badge-style-neon.badge-compact {
+  width: 180px;
+  height: 50px;
+  padding: 4px 14px;
+}
+
+.rp-role-badge.badge-style-neon.badge-mini {
+  width: 140px;
+  height: 40px;
+  padding: 2px 10px;
+}
+
+.rp-role-badge.badge-style-neon .badge-neon-icon {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--badge-accent, #38BDF8);
+  filter: drop-shadow(0 0 6px var(--badge-accent, rgba(56, 189, 248, 0.8)));
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+.rp-role-badge.badge-style-neon.badge-sidebar .badge-neon-icon {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  margin-right: 8px;
+}
+
+.rp-role-badge.badge-style-neon.badge-compact .badge-neon-icon {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  margin-right: 6px;
+}
+
+.rp-role-badge.badge-style-neon .badge-neon-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.rp-role-badge.badge-style-neon .badge-neon-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  min-width: 0;
+  flex: 1;
+}
+
+.rp-role-badge.badge-style-neon .badge-title {
+  font-family: 'Rajdhani', 'Montserrat', -apple-system, sans-serif;
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #FFFFFF;
+  line-height: 1.15;
+  text-shadow: 0 0 8px var(--badge-accent, rgba(56, 189, 248, 0.8)), 0 0 16px rgba(0, 145, 255, 0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.rp-role-badge.badge-style-neon.badge-sidebar .badge-title {
+  font-size: 11.5px;
+}
+
+.rp-role-badge.badge-style-neon.badge-compact .badge-title {
+  font-size: 10.5px;
+}
+
+.rp-role-badge.badge-style-neon .badge-subtitle {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #94A3B8;
+  letter-spacing: 0.5px;
+  margin-top: 1px;
+  line-height: 1.1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.rp-role-badge.badge-style-neon.badge-sidebar .badge-subtitle {
+  font-size: 8.5px;
+}
+
+.rp-role-badge.badge-style-neon.badge-compact .badge-subtitle {
+  font-size: 8px;
+}
+
+/* Custom Badge Style Selector in Admin Panel */
+.badge-style-selector-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.badge-style-option {
+  position: relative;
+  cursor: pointer;
+  display: block;
+}
+
+.badge-style-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.badge-style-card {
+  border: 1.5px solid #202636;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 10px;
+  padding: 12px 14px;
+  transition: all 0.2s ease;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.badge-style-option:hover .badge-style-card {
+  border-color: #2F3B52;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.badge-style-option input[type="radio"]:checked + .badge-style-card {
+  border-color: #0091FF;
+  background: rgba(0, 145, 255, 0.08);
+  box-shadow: 0 0 14px rgba(0, 145, 255, 0.2);
+}
+
+.badge-style-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #FFF;
+  margin-bottom: 4px;
+}
+
+.badge-style-desc {
+  font-size: 11px;
+  color: #8A96A6;
+  line-height: 1.35;
+}
+
 .user-badges-stack.size-normal {
   flex-wrap: wrap;
   gap: 8px;

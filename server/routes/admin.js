@@ -471,7 +471,7 @@ router.get('/custom-badges', requireRole('admin'), (req, res) => {
 // POST create new custom badge (Only Superadmin and Admin)
 router.post('/custom-badges', requireRole('admin'), (req, res) => {
   try {
-    const { title, subtitle, color, glow, icon, level } = req.body;
+    const { title, subtitle, color, glow, icon, level, style } = req.body;
     let { key } = req.body;
 
     if (!title || !title.trim()) {
@@ -495,11 +495,12 @@ router.post('/custom-badges', requireRole('admin'), (req, res) => {
     const badgeIcon = (icon && icon.trim()) ? icon.trim() : 'crown';
     const badgeLevel = Math.min(5, Math.max(1, parseInt(level) || 1));
     const badgeSubtitle = (subtitle && subtitle.trim()) ? subtitle.trim() : 'Особый статус';
+    const badgeStyle = (style && (style === 'neon_crystal' || style === 'blue_btn')) ? 'neon_crystal' : 'classic';
     const badgeId = 'cb_' + Date.now();
 
     db.prepare(`
-      INSERT INTO custom_badges (id, key, title, subtitle, color, glow, icon, level, created_by, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      INSERT INTO custom_badges (id, key, title, subtitle, color, glow, icon, level, style, created_by, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `).run(
       badgeId,
       key,
@@ -509,6 +510,7 @@ router.post('/custom-badges', requireRole('admin'), (req, res) => {
       badgeGlow,
       badgeIcon,
       badgeLevel,
+      badgeStyle,
       req.user.id
     );
 
@@ -538,7 +540,7 @@ router.post('/custom-badges', requireRole('admin'), (req, res) => {
 // PUT update custom badge
 router.put('/custom-badges/:id', requireRole('admin'), (req, res) => {
   try {
-    const { title, subtitle, color, glow, icon, level } = req.body;
+    const { title, subtitle, color, glow, icon, level, style } = req.body;
     const badge = db.prepare('SELECT * FROM custom_badges WHERE id = ?').get(req.params.id);
     if (!badge) {
       return res.status(404).json({ error: 'Плашка не найдена.' });
@@ -554,7 +556,8 @@ router.put('/custom-badges/:id', requireRole('admin'), (req, res) => {
           color = ?,
           glow = ?,
           icon = COALESCE(?, icon),
-          level = COALESCE(?, level)
+          level = COALESCE(?, level),
+          style = COALESCE(?, style)
       WHERE id = ?
     `).run(
       title ? title.trim().toUpperCase() : null,
@@ -563,6 +566,7 @@ router.put('/custom-badges/:id', requireRole('admin'), (req, res) => {
       badgeGlow,
       icon ? icon.trim() : null,
       level !== undefined ? parseInt(level) : null,
+      style || null,
       badge.id
     );
 

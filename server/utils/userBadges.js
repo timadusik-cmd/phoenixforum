@@ -9,7 +9,8 @@ export function getUserBadges(userId, fallbackUser = {}) {
       SELECT ub.badge_key, ub.is_primary, ub.display_order,
              cb.title as custom_title, cb.subtitle as custom_subtitle,
              cb.color as custom_color, cb.glow as custom_glow,
-             cb.icon as custom_icon, cb.level as custom_level
+             cb.icon as custom_icon, cb.level as custom_level,
+             cb.style as custom_style
       FROM user_badges ub
       LEFT JOIN custom_badges cb ON ub.badge_key = cb.key
       WHERE ub.user_id = ?
@@ -26,7 +27,8 @@ export function getUserBadges(userId, fallbackUser = {}) {
         color: r.custom_color || null,
         glow: r.custom_glow || null,
         icon: r.custom_icon || null,
-        level: r.custom_level || null
+        level: r.custom_level || null,
+        style: r.custom_style || 'classic'
       }));
     }
   } catch (err) {

@@ -119,6 +119,7 @@ export function registerCustomBadges(badgesList = []) {
         glow: b.glow || 'rgba(255, 31, 54, 0.40)',
         icon: b.icon || 'crown',
         level: b.level || 1,
+        style: b.style || 'classic',
         isCustom: true
       });
     }
@@ -218,12 +219,16 @@ export function renderRoleBadge(roleOrUser, options = {}) {
         glow: roleOrUser.glow || `rgba(255, 31, 54, 0.40)`,
         icon: roleOrUser.icon || 'crown',
         level: roleOrUser.level || 1,
+        style: roleOrUser.style || 'classic',
         isCustom: !!roleOrUser.isCustom
       };
     } else {
       const roleKey = roleOrUser.key || roleOrUser.role || roleOrUser.author_role || 'player';
       const roleBadge = roleOrUser.title || roleOrUser.role_badge || roleOrUser.author_badge || '';
       config = getBadgeConfig(roleKey, roleBadge);
+      if (roleOrUser.style) {
+        config = { ...config, style: roleOrUser.style };
+      }
     }
   }
 
@@ -232,6 +237,25 @@ export function renderRoleBadge(roleOrUser, options = {}) {
   const size = options.size || 'normal'; // 'normal', 'sidebar', 'compact', 'mini'
   const customClass = options.class || '';
   const iconSvg = BADGE_ICONS[config.icon] || BADGE_ICONS.crown;
+
+  // Variant 2: Neon Crystal (Blue Plate Graphic)
+  if (config.style === 'neon_crystal' || config.style === 'blue_btn') {
+    return `
+      <div class="rp-role-badge badge-style-neon badge-${size} ${customClass}" 
+           style="--badge-accent: ${config.color || '#38BDF8'}; --badge-glow: ${config.glow || 'rgba(56, 189, 248, 0.45)'};" 
+           data-role="${config.key}" 
+           data-style="neon_crystal"
+           title="${config.title} • ${config.subtitle}">
+        <div class="badge-neon-icon">
+          ${iconSvg}
+        </div>
+        <div class="badge-neon-content">
+          <div class="badge-title">${config.title}</div>
+          ${config.subtitle ? `<div class="badge-subtitle">${config.subtitle}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }
 
   // Determine emblem (built-in PNG vs dynamic SVG icon emblem)
   const isBuiltIn = !!BADGES[config.key];

@@ -481,6 +481,27 @@ export function renderAdminPanel(data = {}) {
                 </div>
               </div>
 
+              <!-- Badge Style Selection -->
+              <div class="modal-field">
+                <label>Стиль оформления плашки</label>
+                <div class="badge-style-selector-grid">
+                  <label class="badge-style-option">
+                    <input type="radio" name="custom-badge-style" value="classic" checked />
+                    <div class="badge-style-card">
+                      <div class="badge-style-title">Классический Phoenix</div>
+                      <div class="badge-style-desc">Тёмная карточка с круглой эмблемой, градиентом и диагональными полосами</div>
+                    </div>
+                  </label>
+                  <label class="badge-style-option">
+                    <input type="radio" name="custom-badge-style" value="neon_crystal" />
+                    <div class="badge-style-card">
+                      <div class="badge-style-title">💎 Неоновый кристалл (Blue Plate)</div>
+                      <div class="badge-style-desc">Футуристичная неоновая плашка с текстурой синего кристалла и свечением</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
               <!-- Color Picker + Presets -->
               <div class="modal-field">
                 <label>Цвет акцента и свечения</label>
@@ -584,7 +605,9 @@ export function renderAdminPanel(data = {}) {
                     </div>
                     <div class="custom-badge-meta-row">
                       <span>Ключ: <code>${cb.key}</code></span>
-                      <span>Приоритет: ${cb.level} ур.</span>
+                      <span style="font-size: 11px; color: ${cb.style === 'neon_crystal' ? '#38BDF8' : '#8A96A6'}; font-weight: 600;">
+                        ${cb.style === 'neon_crystal' ? '💎 Неоновый' : 'Классика'} (${cb.level} ур.)
+                      </span>
                     </div>
                     <div class="custom-badge-meta-row" style="margin-top: 6px;">
                       <span>Выдано: <strong>${cb.assigned_users_count || 0}</strong> игр.</span>
