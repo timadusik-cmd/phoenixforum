@@ -408,6 +408,10 @@ export function renderAdminPanel(data = {}) {
 
                 <!-- Primary Role Selector & Quick Actions -->
                 <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                  <button type="button" class="btn-create-topic btn-admin-user-awards" data-user-id="${u.id}" data-username="${u.username}" data-level="${u.level || 1}" data-xp="${u.current_xp || 0}" data-rep="${u.reputation || 0}" style="padding: 6px 12px; font-size: 11.5px; background: linear-gradient(135deg, #FF1F36, #FF8A00); display: inline-flex; align-items: center; gap: 6px;">
+                    ${ICONS.award} <span>Уровень и Награды</span>
+                  </button>
+
                   <select class="modal-select change-role-select" data-user-id="${u.id}" title="Основная системная роль" style="width: 170px; padding: 6px 10px; font-size: 11.5px; font-weight: 600; background: #12151D; border-color: #262D3D; color: #FFF;">
                     <option value="superadmin" ${u.role === 'superadmin' ? 'selected' : ''}>👑 Главный Администратор</option>
                     <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>👑 Администратор</option>

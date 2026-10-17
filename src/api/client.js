@@ -149,7 +149,14 @@ export const api = {
     },
     getProfile: (idOrName) => request(`/api/users/${encodeURIComponent(idOrName)}`),
     getOnlineStats: () => request('/api/users/stats/online'),
-    heartbeat: () => request('/api/users/heartbeat', { method: 'POST' })
+    heartbeat: () => request('/api/users/heartbeat', { method: 'POST' }),
+    giveReputation: (userId, data) => request(`/api/users/${encodeURIComponent(userId)}/reputation`, { method: 'POST', body: data }),
+    getReputationLogs: (userId) => request(`/api/users/${encodeURIComponent(userId)}/reputation/logs`)
+  },
+
+  // Awards
+  awards: {
+    getAll: () => request('/api/users/awards/all')
   },
 
   // Notifications
@@ -188,6 +195,10 @@ export const api = {
     changeUserRole: (userId, role) => request(`/api/admin/users/${encodeURIComponent(userId)}/role`, { method: 'PUT', body: { role } }),
     banUser: (userId, data) => request(`/api/admin/users/${encodeURIComponent(userId)}/ban`, { method: 'PUT', body: data }),
     warnUser: (userId, data) => request(`/api/admin/users/${encodeURIComponent(userId)}/warn`, { method: 'POST', body: data }),
+    updateUserStats: (userId, stats) => request(`/api/admin/users/${encodeURIComponent(userId)}/stats`, { method: 'PUT', body: stats }),
+    getUserAwards: (userId) => request(`/api/admin/users/${encodeURIComponent(userId)}/awards`),
+    grantAward: (userId, data) => request(`/api/admin/users/${encodeURIComponent(userId)}/awards`, { method: 'POST', body: data }),
+    revokeAward: (userId, awardId) => request(`/api/admin/users/${encodeURIComponent(userId)}/awards/${encodeURIComponent(awardId)}`, { method: 'DELETE' }),
     getAuditLogs: () => request('/api/admin/audit-logs'),
 
     // Custom Badges Management (Only Superadmin & Admin)

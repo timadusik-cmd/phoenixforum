@@ -2,13 +2,17 @@ import { state } from '../state.js';
 import { ICONS } from '../utils/icons.js';
 import { renderRoleBadge, renderUserBadges, getBadgeConfig, BADGE_ICONS } from '../utils/badges.js';
 import { formatTimeAgo } from '../utils/time.js';
+import { renderLevelShield, getLevelProgress } from '../utils/awards.js';
 
 export function renderSidebarRight() {
   const user = state.user;
 
   let profileHtml = '';
   if (user) {
-    const xpPercent = Math.min(100, Math.round(((user.current_xp || 0) % 200) / 2));
+    const progress = getLevelProgress(user.current_xp || 0);
+    const postsCount = user.postsCount ?? 0;
+    const topicsCount = user.topicsCount ?? 0;
+    const reputation = user.reputation ?? 0;
 
     profileHtml = `
       <div class="user-profile-widget">
@@ -19,7 +23,10 @@ export function renderSidebarRight() {
             <span class="profile-status-dot online"></span>
           </div>
           <div class="profile-user-info">
-            <div class="profile-username">${user.username}</div>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+              <div class="profile-username" title="${user.username}">${user.username}</div>
+              ${renderLevelShield(progress.level, { size: 28 })}
+            </div>
             <div class="profile-meta-row">
               <span class="profile-online-text">• Онлайн</span>
             </div>
@@ -33,35 +40,35 @@ export function renderSidebarRight() {
         <!-- Level & XP Progress -->
         <div class="profile-level-section">
           <div class="level-labels-row">
-            <span class="level-title-text">Уровень ${user.level || 12}</span>
-            <span class="level-xp-text">${(user.current_xp || 320) % 1000} / 1 000 XP</span>
+            <span class="level-title-text"><strong style="color: #FF334B;">Уровень ${progress.level}</strong></span>
+            <span class="level-xp-text">${progress.isMaxLevel ? 'MAX LEVEL' : `${progress.xpInLevel} / ${progress.nextLevelXp - progress.currentLevelXp} XP (${progress.percent}%)`}</span>
           </div>
-          <div class="level-progress-track">
-            <div class="level-progress-fill" style="width: ${xpPercent || 32}%;"></div>
+          <div class="level-progress-track" title="${progress.currentXp} всего XP">
+            <div class="level-progress-fill" style="width: ${progress.percent}%;"></div>
           </div>
         </div>
 
         <!-- Stats 3-Grid -->
         <div class="profile-stats-row">
-          <div class="profile-stat-box">
+          <div class="profile-stat-box" title="Всего сообщений: ${postsCount}">
             <div class="stat-icon-wrap">${ICONS.inbox}</div>
             <div class="stat-text-col">
               <span class="stat-lbl">Сообщения</span>
-              <span class="stat-num">${user.postsCount || 124}</span>
+              <span class="stat-num">${postsCount}</span>
             </div>
           </div>
-          <div class="profile-stat-box">
+          <div class="profile-stat-box" title="Всего тем: ${topicsCount}">
             <div class="stat-icon-wrap">${ICONS.chatBubble}</div>
             <div class="stat-text-col">
               <span class="stat-lbl">Темы</span>
-              <span class="stat-num">${user.topicsCount || 32}</span>
+              <span class="stat-num">${topicsCount}</span>
             </div>
           </div>
-          <div class="profile-stat-box">
+          <div class="profile-stat-box" title="Репутация пользователя: ${reputation >= 0 ? '+' : ''}${reputation}">
             <div class="stat-icon-wrap stat-rep-icon">${ICONS.award}</div>
             <div class="stat-text-col">
               <span class="stat-lbl">Репутация</span>
-              <span class="stat-num stat-rep-val">+${user.reputation || 156}</span>
+              <span class="stat-num stat-rep-val">${reputation >= 0 ? '+' : ''}${reputation}</span>
             </div>
           </div>
         </div>

@@ -1,14 +1,18 @@
-// Phoenix RP Forum - Member Profile Page
+// Phoenix RP Forum - Member Profile Page with 20 Awards & 50 Levels
 import { state } from '../state.js';
 import { ICONS } from '../utils/icons.js';
 import { renderRoleBadge, renderUserBadges } from '../utils/badges.js';
 import { formatTimeAgo } from '../utils/time.js';
+import { renderLevelShield, getLevelProgress, renderAwardCard } from '../utils/awards.js';
 
 export function renderMemberProfile(data) {
   const { user, recentTopics = [], recentPosts = [] } = data;
   const isMe = state.user && state.user.id === user.id;
 
-  const xpPercent = Math.min(100, Math.round(((user.current_xp || 0) % 1000) / 10));
+  const progress = user.levelProgress || getLevelProgress(user.current_xp || 0);
+  const userAwards = user.awards || [];
+  const unlockedCount = userAwards.filter(a => a.is_unlocked).length;
+
   const joinedDate = new Date(user.created_at || Date.now()).toLocaleDateString('ru-RU', {
     day: '2-digit', month: 'long', year: 'numeric'
   });
@@ -43,10 +47,15 @@ export function renderMemberProfile(data) {
                 <span>Настройки</span>
               </a>
             ` : state.user ? `
-              <button type="button" class="btn-create-topic btn-start-pm-with-user" data-user-id="${user.id}" data-username="${user.username}" style="box-shadow: 0 4px 14px rgba(255,35,56,0.4);">
-                ${ICONS.mail}
-                <span>Написать сообщение</span>
-              </button>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn-create-topic btn-open-rep-modal" data-user-id="${user.id}" data-username="${user.username}" style="background: linear-gradient(135deg, #10B981, #059669); box-shadow: 0 4px 14px rgba(16,185,129,0.3);">
+                  ${ICONS.plus} <span>Репутация</span>
+                </button>
+                <button type="button" class="btn-create-topic btn-start-pm-with-user" data-user-id="${user.id}" data-username="${user.username}" style="box-shadow: 0 4px 14px rgba(255,35,56,0.4);">
+                  ${ICONS.mail}
+                  <span>Написать в ЛС</span>
+                </button>
+              </div>
             ` : ''}
           </div>
         </div>
@@ -68,6 +77,7 @@ export function renderMemberProfile(data) {
             <div class="profile-hero-top-line">
               <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
                 <h1 class="profile-hero-name">${user.username}</h1>
+                ${renderLevelShield(progress.level, { size: 36 })}
                 <span class="profile-online-text">
                   <span class="status-dot-green"></span>
                   <span>${user.status === 'online' ? 'В сети' : 'Не в сети'}</span>
@@ -84,13 +94,25 @@ export function renderMemberProfile(data) {
               <span>${user.fraction || 'Гражданский'}</span>
             </div>
 
-            <div class="profile-xp-row">
-              <span class="xp-level-title">Уровень ${user.level || 1}</span>
-              <div class="xp-progress-bar">
-                <div class="xp-progress-fill" style="width: ${xpPercent || 46}%;"></div>
+            <!-- Enhanced XP Progress Bar -->
+            <div class="profile-xp-section">
+              <div class="profile-xp-row">
+                <span class="xp-level-title">
+                  <strong style="color: #FF334B;">Уровень ${progress.level}</strong>
+                  ${progress.isMaxLevel ? '<span class="max-lvl-badge">MAX</span>' : ''}
+                </span>
+                <div class="xp-progress-bar" title="Опыт: ${progress.currentXp} XP">
+                  <div class="xp-progress-fill" style="width: ${progress.percent}%;"></div>
+                </div>
+                <span class="xp-numbers">
+                  ${progress.isMaxLevel ? `${progress.currentXp} XP (МАКСИМАЛЬНЫЙ УРОВЕНЬ)` : `${progress.xpInLevel} / ${progress.nextLevelXp - progress.currentLevelXp} XP (${progress.percent}%)`}
+                </span>
               </div>
-              <span class="xp-numbers">${(user.current_xp || 465) % 1000} / 1 000 XP</span>
+              <div class="xp-rates-hint">
+                <span>💡 Начисление опыта: <strong>+25 XP</strong> за тему • <strong>+10 XP</strong> за ответ • <strong>+5 XP</strong> за реакцию</span>
+              </div>
             </div>
+
           </div>
         </div>
       </div>
@@ -156,15 +178,37 @@ export function renderMemberProfile(data) {
             <div class="profile-stats-list">
               <div class="p-stat-item">
                 <span class="lbl">${ICONS.award} Репутация:</span>
-                <span class="val stat-rep-val">+${user.reputation || 0}</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="val stat-rep-val" style="font-size: 14px;">${(user.reputation ?? 0) >= 0 ? '+' : ''}${user.reputation ?? 0}</span>
+                  ${state.user && state.user.id !== user.id ? `
+                    <button type="button" class="btn-mini-rep btn-open-rep-modal" data-user-id="${user.id}" data-username="${user.username}" title="Изменить репутацию пользователя">
+                      ${ICONS.plus}
+                    </button>
+                  ` : ''}
+                  <button type="button" class="btn-mini-history btn-open-rep-logs" data-user-id="${user.id}" title="История изменений репутации">
+                    История
+                  </button>
+                </div>
+              </div>
+              <div class="p-stat-item">
+                <span class="lbl">${ICONS.shield} Уровень форума:</span>
+                <span class="val"><strong>${progress.level}</strong> из 50</span>
+              </div>
+              <div class="p-stat-item">
+                <span class="lbl">${ICONS.flame} Всего опыта (XP):</span>
+                <span class="val" style="color: #FF8A00;">${user.current_xp || 0} XP</span>
+              </div>
+              <div class="p-stat-item">
+                <span class="lbl">${ICONS.award} Наград открыто:</span>
+                <span class="val" style="color: #FF334B;"><strong>${unlockedCount}</strong> / 20</span>
               </div>
               <div class="p-stat-item">
                 <span class="lbl">${ICONS.chatBubble} Тем создано:</span>
-                <span class="val">${user.topicsCount || 0}</span>
+                <span class="val">${user.topicsCount ?? 0}</span>
               </div>
               <div class="p-stat-item">
                 <span class="lbl">${ICONS.docText} Сообщений:</span>
-                <span class="val">${user.postsCount || 0}</span>
+                <span class="val">${user.postsCount ?? 0}</span>
               </div>
               <div class="p-stat-item">
                 <span class="lbl">${ICONS.server} Сервер:</span>
@@ -253,6 +297,61 @@ export function renderMemberProfile(data) {
           ` : ''}
         </div>
       </div>
+
+      <!-- ======================================================================
+           20 НАГРАД ФОРУМА (Matching Reference Showcase 5x4 Grid)
+           ====================================================================== -->
+      <div class="profile-awards-showcase-section">
+        <div class="awards-section-header">
+          <div>
+            <div class="awards-section-super">PHOENIX PROJECT RP • СИСТЕМА ДОСТИЖЕНИЙ</div>
+            <h2 class="awards-section-title">20 НАГРАД ФОРУМА</h2>
+            <p class="awards-section-subtitle">
+              Уникальные награды за активность, которые подчеркивают твой статус и участие в жизни сообщества.
+            </p>
+          </div>
+          <div class="awards-counter-badge">
+            <span class="count-num">${unlockedCount}</span>
+            <span class="count-lbl">/ 20 открыто</span>
+          </div>
+        </div>
+
+        <div class="awards-ref-grid">
+          ${userAwards.map(a => renderAwardCard(a, a.is_unlocked, a.unlocked_at)).join('')}
+        </div>
+      </div>
+
+      <!-- ======================================================================
+           50 УРОВНЕЙ ФОРУМА (Level progression overview)
+           ====================================================================== -->
+      <div class="profile-levels-showcase-section">
+        <div class="awards-section-header">
+          <div>
+            <div class="awards-section-super">ПРОКАЧКА АККАУНТА</div>
+            <h2 class="awards-section-title">50 УРОВНЕЙ ФОРУМА</h2>
+            <p class="awards-section-subtitle">
+              Повышай уровень, получай опыт и открывай новые возможности.
+            </p>
+          </div>
+          <div class="levels-current-pill">
+            <span>Текущий ранг:</span>
+            <strong>Уровень ${progress.level}</strong>
+          </div>
+        </div>
+
+        <div class="levels-ref-grid">
+          ${Array.from({ length: 50 }, (_, i) => i + 1).map(lvl => {
+            const isCurrent = lvl === progress.level;
+            const isUnlocked = lvl <= progress.level;
+            return `
+              <div class="level-showcase-cell ${isCurrent ? 'current-user-level' : ''} ${isUnlocked ? 'level-reached' : 'level-future'}" title="Уровень ${lvl}">
+                ${renderLevelShield(lvl, { size: 34 })}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
     </div>
   `;
 }

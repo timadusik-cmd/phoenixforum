@@ -3,6 +3,7 @@ import db from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 import { getUserBadges } from '../utils/userBadges.js';
+import { checkAndGrantUserAwards, getUserAwardsFull, AWARDS_LIST, LEVEL_THRESHOLDS } from '../utils/levelAwards.js';
 
 const router = Router();
 
@@ -401,6 +402,114 @@ router.post('/users/:id/warn', requireRole('moderator'), (req, res) => {
   } catch (err) {
     console.error('Error issuing warning:', err);
     res.status(500).json({ error: 'Ошибка при выдаче предупреждения.' });
+  }
+});
+
+// 3.1 Manage User Level, XP, Reputation (Admin Only)
+router.put('/users/:id/stats', requireRole('admin'), (req, res) => {
+  try {
+    const { level, current_xp, reputation } = req.body;
+    const targetUser = db.prepare('SELECT id, username, level, current_xp, reputation FROM users WHERE id = ?').get(req.params.id);
+    if (!targetUser) return res.status(404).json({ error: 'Пользователь не найден.' });
+
+    const newLevel = level !== undefined ? Math.min(50, Math.max(1, parseInt(level) || 1)) : targetUser.level;
+    const newXp = current_xp !== undefined ? Math.max(0, parseInt(current_xp) || 0) : targetUser.current_xp;
+    const newRep = reputation !== undefined ? parseInt(reputation) || 0 : targetUser.reputation;
+
+    db.prepare(`
+      UPDATE users 
+      SET level = ?, current_xp = ?, reputation = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(newLevel, newXp, newRep, targetUser.id);
+
+    // Check awards (e.g. awards for levels 10, 25, 50 or rep 15)
+    checkAndGrantUserAwards(db, targetUser.id);
+
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'update_user_stats', 'user', ?, ?, ?)
+    `).run('log_' + Date.now(), req.user.id, targetUser.id, `Изменение статов пользователя ${targetUser.username}: Уровень=${newLevel}, XP=${newXp}, Репутация=${newRep}`, req.ip || '');
+
+    res.json({
+      message: `Статистика пользователя ${targetUser.username} успешно обновлена!`,
+      stats: { level: newLevel, current_xp: newXp, reputation: newRep }
+    });
+  } catch (err) {
+    console.error('Error updating user stats:', err);
+    res.status(500).json({ error: 'Ошибка при обновлении статистики пользователя.' });
+  }
+});
+
+// 3.2 Get User Awards Status (Admin)
+router.get('/users/:id/awards', (req, res) => {
+  try {
+    const awards = getUserAwardsFull(db, req.params.id);
+    res.json({ awards });
+  } catch (err) {
+    console.error('Error fetching user awards for admin:', err);
+    res.status(500).json({ error: 'Ошибка при получении наград пользователя.' });
+  }
+});
+
+// 3.3 Grant Award to User (Admin)
+router.post('/users/:id/awards', requireRole('admin'), (req, res) => {
+  try {
+    const { award_id, reason = 'Выдано администрацией проекта' } = req.body;
+    const targetUser = db.prepare('SELECT id, username FROM users WHERE id = ?').get(req.params.id);
+    if (!targetUser) return res.status(404).json({ error: 'Пользователь не найден.' });
+
+    const award = AWARDS_LIST.find(a => a.id === award_id);
+    if (!award) return res.status(404).json({ error: 'Награда не найдена.' });
+
+    const uaId = 'ua_' + Date.now() + '_' + Math.round(Math.random() * 1000);
+    db.prepare(`
+      INSERT OR REPLACE INTO user_awards (id, user_id, award_id, assigned_by, reason, created_at)
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(uaId, targetUser.id, award.id, req.user.username, reason.trim());
+
+    // Notification to user
+    db.prepare(`
+      INSERT INTO notifications (id, user_id, type, title, text, link, is_read, created_at)
+      VALUES (?, ?, 'award', '🎉 Администрация выдала вам награду!', ?, ?, 0, CURRENT_TIMESTAMP)
+    `).run(
+      'notif_' + Date.now() + '_' + Math.round(Math.random() * 1000),
+      targetUser.id,
+      `Вам присвоена официальная награда «${award.title}» (${award.number}). Причина: ${reason.trim()}`,
+      `/forum/profile/${targetUser.username}`
+    );
+
+    // Audit log
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'grant_award', 'user', ?, ?, ?)
+    `).run('log_' + Date.now(), req.user.id, targetUser.id, `Выдача награды [${award.number}] ${award.title} пользователю ${targetUser.username}`, req.ip || '');
+
+    res.json({ message: `Награда «${award.title}» успешно выдана пользователю ${targetUser.username}!` });
+  } catch (err) {
+    console.error('Error granting award:', err);
+    res.status(500).json({ error: 'Ошибка при выдаче награды.' });
+  }
+});
+
+// 3.4 Revoke Award from User (Admin)
+router.delete('/users/:id/awards/:awardId', requireRole('admin'), (req, res) => {
+  try {
+    const targetUser = db.prepare('SELECT id, username FROM users WHERE id = ?').get(req.params.id);
+    if (!targetUser) return res.status(404).json({ error: 'Пользователь не найден.' });
+
+    const award = AWARDS_LIST.find(a => a.id === req.params.awardId);
+
+    db.prepare('DELETE FROM user_awards WHERE user_id = ? AND award_id = ?').run(targetUser.id, req.params.awardId);
+
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'revoke_award', 'user', ?, ?, ?)
+    `).run('log_' + Date.now(), req.user.id, targetUser.id, `Снятие награды [${req.params.awardId}] у пользователя ${targetUser.username}`, req.ip || '');
+
+    res.json({ message: `Награда успешно снята у пользователя ${targetUser.username}.` });
+  } catch (err) {
+    console.error('Error revoking award:', err);
+    res.status(500).json({ error: 'Ошибка при снятии награды.' });
   }
 });
 

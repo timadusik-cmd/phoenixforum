@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { seedAwards } from './utils/levelAwards.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -266,6 +267,45 @@ export function initDatabase() {
       UNIQUE (user_id, badge_key)
     );
 
+    -- 16. Forum Awards Table (20 Awards Reference)
+    CREATE TABLE IF NOT EXISTS awards (
+      id TEXT PRIMARY KEY,
+      number TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      icon_key TEXT NOT NULL,
+      category TEXT DEFAULT 'general',
+      rarity TEXT DEFAULT 'rare',
+      condition_desc TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 17. User Awards Junction Table
+    CREATE TABLE IF NOT EXISTS user_awards (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      award_id TEXT NOT NULL,
+      assigned_by TEXT DEFAULT 'system',
+      reason TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+      FOREIGN KEY (award_id) REFERENCES awards (id) ON DELETE CASCADE,
+      UNIQUE (user_id, award_id)
+    );
+
+    -- 18. Reputation Logs Table
+    CREATE TABLE IF NOT EXISTS reputation_logs (
+      id TEXT PRIMARY KEY,
+      target_user_id TEXT NOT NULL,
+      giver_user_id TEXT NOT NULL,
+      delta INTEGER NOT NULL,
+      reason TEXT,
+      post_id TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (target_user_id) REFERENCES users (id) ON DELETE CASCADE,
+      FOREIGN KEY (giver_user_id) REFERENCES users (id) ON DELETE CASCADE
+    );
+
     -- Indices for high performance
     CREATE INDEX IF NOT EXISTS idx_threads_category ON threads (category_id, is_pinned DESC, updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_posts_thread ON posts (thread_id, created_at ASC);
@@ -277,7 +317,12 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages (conversation_id, created_at ASC);
     CREATE INDEX IF NOT EXISTS idx_user_badges_user ON user_badges (user_id, is_primary DESC, display_order ASC);
     CREATE INDEX IF NOT EXISTS idx_custom_badges_key ON custom_badges (key);
+    CREATE INDEX IF NOT EXISTS idx_user_awards_user ON user_awards (user_id, created_at ASC);
+    CREATE INDEX IF NOT EXISTS idx_rep_logs_target ON reputation_logs (target_user_id, created_at DESC);
   `);
+
+  // Seed the 20 official awards
+  seedAwards(db);
 
   // Safe migrations for existing databases
   try { db.prepare("ALTER TABLE users ADD COLUMN cover_banner TEXT DEFAULT '/assets/hero_banner.jpg'").run(); } catch {}

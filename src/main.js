@@ -1394,6 +1394,48 @@ function attachGlobalEvents() {
       }
     };
   });
+
+  // -------------------------------------------------------------
+  // Reputation & Awards Modals Triggers
+  // -------------------------------------------------------------
+  document.querySelectorAll('.btn-open-rep-modal').forEach(btn => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!state.user) {
+        showToast('Для изменения репутации необходимо войти в аккаунт');
+        openModal('auth');
+        return;
+      }
+      const targetUserId = btn.getAttribute('data-user-id');
+      const targetUsername = btn.getAttribute('data-username') || 'Пользователь';
+      const postId = btn.getAttribute('data-post-id') || null;
+      openModal('reputation', { targetUserId, targetUsername, postId });
+    };
+  });
+
+  document.querySelectorAll('.btn-open-rep-logs').forEach(btn => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const targetUserId = btn.getAttribute('data-user-id');
+      const targetUsername = btn.getAttribute('data-username') || 'Пользователь';
+      openModal('reputation_logs', { targetUserId, targetUsername });
+    };
+  });
+
+  document.querySelectorAll('.btn-admin-user-awards').forEach(btn => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const userId = btn.getAttribute('data-user-id');
+      const username = btn.getAttribute('data-username');
+      const level = parseInt(btn.getAttribute('data-level')) || 1;
+      const current_xp = parseInt(btn.getAttribute('data-xp')) || 0;
+      const reputation = parseInt(btn.getAttribute('data-rep')) || 0;
+      openModal('admin_user_awards', { userId, username, level, current_xp, reputation });
+    };
+  });
 }
 
 // Sidebar Accordion Subsections Toggle

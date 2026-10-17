@@ -4,12 +4,30 @@ import { ICONS, getIcon } from '../utils/icons.js';
 import { api, authStorage } from '../api/client.js';
 import { playSound } from '../utils/sound.js';
 import { router } from '../router.js';
+import { renderLevelShield, getAwardSvg } from '../utils/awards.js';
 
-export function openModal(name, context = null) {
+export async function openModal(name, context = null) {
   state.activeModal = name;
   state.authError = null;
   state.modalContext = context;
   if (context) state.reportContext = context;
+
+  if (name === 'reputation_logs' && context?.targetUserId) {
+    try {
+      const res = await api.users.getReputationLogs(context.targetUserId);
+      state.modalContext = { ...context, logs: res.logs || [] };
+    } catch {
+      state.modalContext = { ...context, logs: [] };
+    }
+  } else if (name === 'admin_user_awards' && context?.userId) {
+    try {
+      const res = await api.admin.getUserAwards(context.userId);
+      state.modalContext = { ...context, awards: res.awards || [] };
+    } catch {
+      state.modalContext = { ...context, awards: [] };
+    }
+  }
+
   renderModal();
 }
 
@@ -812,6 +830,194 @@ export function renderModal() {
     `;
   }
 
+  // 11. Give / Change Reputation Modal
+  else if (state.activeModal === 'reputation') {
+    const ctx = state.modalContext || {};
+    container.innerHTML = `
+      <div class="modal-backdrop" id="modal-backdrop">
+        <div class="modal-card" style="max-width: 460px;">
+          <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="color: #10B981;">${ICONS.award}</div>
+              <div>
+                <h3 class="modal-title">Изменение репутации</h3>
+                <p style="font-size: 11.5px; color: #8A96A6; margin: 0;">Пользователь: <strong style="color: #FFF;">${ctx.targetUsername || 'Пользователь'}</strong></p>
+              </div>
+            </div>
+            <button class="modal-close-btn" id="modal-close-btn">${ICONS.x}</button>
+          </div>
+
+          <div class="modal-body">
+            <div class="rep-choice-row" style="display: flex; gap: 10px; margin-bottom: 16px;">
+              <button type="button" class="btn-rep-choice active" id="btn-rep-choice-plus" data-delta="1" style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #10B981; background: rgba(16,185,129,0.15); color: #10B981; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <span style="font-size: 18px;">▲</span> <span>Повысить (+1)</span>
+              </button>
+              <button type="button" class="btn-rep-choice" id="btn-rep-choice-minus" data-delta="-1" style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #2A344A; background: #0E121C; color: #8A96A6; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <span style="font-size: 18px;">▼</span> <span>Понизить (-1)</span>
+              </button>
+            </div>
+
+            <div class="modal-form-group">
+              <label>Причина изменения репутации (отображается в журнале):</label>
+              <textarea class="modal-input modal-textarea" id="rep-input-reason" rows="3" placeholder="Например: Помог разобраться в правилах сервера, отличный гайд или жалоба..."></textarea>
+            </div>
+
+            <button type="button" class="btn-create-topic" id="btn-submit-give-rep" data-user-id="${ctx.targetUserId || ''}" data-post-id="${ctx.postId || ''}" style="width: 100%; justify-content: center; margin-top: 14px; padding: 12px; font-size: 13.5px; background: linear-gradient(135deg, #10B981, #059669);">
+              ${ICONS.check} <span>Подтвердить изменение репутации</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // 12. Reputation History Logs Modal
+  else if (state.activeModal === 'reputation_logs') {
+    const ctx = state.modalContext || {};
+    const logs = ctx.logs || [];
+    container.innerHTML = `
+      <div class="modal-backdrop" id="modal-backdrop">
+        <div class="modal-card" style="max-width: 580px;">
+          <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="color: #10B981;">${ICONS.award}</div>
+              <div>
+                <h3 class="modal-title">Журнал изменений репутации</h3>
+                <p style="font-size: 11.5px; color: #8A96A6; margin: 0;">История для: <strong style="color: #FFF;">${ctx.targetUsername || ''}</strong></p>
+              </div>
+            </div>
+            <button class="modal-close-btn" id="modal-close-btn">${ICONS.x}</button>
+          </div>
+
+          <div class="modal-body" style="max-height: 440px; overflow-y: auto;">
+            ${logs.length > 0 ? `
+              <div class="rep-logs-list" style="display: flex; flex-direction: column; gap: 8px;">
+                ${logs.map(l => {
+                  const isPlus = l.delta > 0;
+                  const sign = isPlus ? '+' : '';
+                  const time = new Date(l.created_at).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                  return `
+                    <div class="rep-log-card" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; background: #0E121B; border: 1px solid #1C2333; border-radius: 8px;">
+                      <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="font-size: 16px; font-weight: 900; color: ${isPlus ? '#10B981' : '#FF1F36'}; width: 36px; height: 36px; border-radius: 6px; background: ${isPlus ? 'rgba(16,185,129,0.12)' : 'rgba(255,31,54,0.12)'}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                          ${sign}${l.delta}
+                        </div>
+                        <div>
+                          <div style="font-size: 13px; color: #FFF; font-weight: 600;">
+                            ${l.giver_username || 'Пользователь'}
+                            ${l.giver_badge ? `<span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: ${l.giver_badge_color || '#FF8A00'}; color: #FFF; margin-left: 6px;">${l.giver_badge}</span>` : ''}
+                          </div>
+                          <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;">
+                            «${l.reason || 'Без описания'}»
+                          </div>
+                        </div>
+                      </div>
+                      <div style="font-size: 11px; color: #64748B; flex-shrink: 0;">${time}</div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            ` : `
+              <div style="text-align: center; padding: 40px 0; color: #64748B; font-size: 13px;">
+                Репутация пользователя ещё не изменялась вручную.
+              </div>
+            `}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // 13. Admin User Awards & Levels Modal
+  else if (state.activeModal === 'admin_user_awards') {
+    const ctx = state.modalContext || {};
+    const awards = ctx.awards || [];
+    container.innerHTML = `
+      <div class="modal-backdrop" id="modal-backdrop">
+        <div class="modal-card" style="max-width: 760px; max-height: 90vh; overflow-y: auto;">
+          <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="color: #FF1F36;">${ICONS.award}</div>
+              <div>
+                <h3 class="modal-title">Управление уровнем, XP и наградами</h3>
+                <p style="font-size: 11.5px; color: #8A96A6; margin: 0;">Пользователь: <strong style="color: #FFF;">${ctx.username || ''}</strong></p>
+              </div>
+            </div>
+            <button class="modal-close-btn" id="modal-close-btn">${ICONS.x}</button>
+          </div>
+
+          <div class="modal-body">
+            <!-- Section 1: Level, XP, Reputation Stats -->
+            <div style="background: #0D1017; border: 1px solid #1C2333; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+              <h4 style="font-size: 13.5px; color: #FFF; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                ${ICONS.shield} <span>Базовые показатели профиля</span>
+              </h4>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                <div class="modal-form-group">
+                  <label style="font-size: 11px; color: #8A96A6;">Уровень (1–50):</label>
+                  <input type="number" min="1" max="50" class="modal-input" id="admin-user-level-input" value="${ctx.level || 1}" />
+                </div>
+                <div class="modal-form-group">
+                  <label style="font-size: 11px; color: #8A96A6;">Опыт (XP):</label>
+                  <input type="number" min="0" class="modal-input" id="admin-user-xp-input" value="${ctx.current_xp || 0}" />
+                </div>
+                <div class="modal-form-group">
+                  <label style="font-size: 11px; color: #8A96A6;">Репутация:</label>
+                  <input type="number" class="modal-input" id="admin-user-rep-input" value="${ctx.reputation || 0}" />
+                </div>
+              </div>
+              <button type="button" class="btn-create-topic" id="btn-admin-save-stats" data-user-id="${ctx.userId || ''}" style="margin-top: 12px; padding: 8px 16px; font-size: 12px; justify-content: center;">
+                ${ICONS.check} <span>Сохранить уровень, XP и репутацию</span>
+              </button>
+            </div>
+
+            <!-- Section 2: 20 Awards Management -->
+            <div>
+              <h4 style="font-size: 13.5px; color: #FFF; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                ${ICONS.award} <span>20 Наград форума (Выдача и Снятие)</span>
+              </h4>
+              <p style="font-size: 11.5px; color: #8A96A6; margin-bottom: 14px;">
+                Нажмите «Выдать» для присвоения официальной награды или «Снять» для её отзыва.
+              </p>
+
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                ${awards.map(a => `
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; background: #0E121C; border: 1px solid ${a.is_unlocked ? '#FF1F36' : '#1A2130'}; border-radius: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <div style="width: 28px; height: 28px; border-radius: 6px; background: rgba(255,31,54,0.12); color: #FF334B; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <svg viewBox="0 0 24 24" style="width: 16px; height: 16px;">
+                          ${getAwardSvg(a.icon_key)}
+                        </svg>
+                      </div>
+                      <div>
+                        <div style="font-size: 12px; font-weight: 700; color: #FFF;">
+                          <span style="color: #FF334B; margin-right: 4px;">${a.number}</span> ${a.title}
+                        </div>
+                        <div style="font-size: 10.5px; color: ${a.is_unlocked ? '#10B981' : '#64748B'};">
+                          ${a.is_unlocked ? '✔ Выдана' : 'Не выдана'}
+                        </div>
+                      </div>
+                    </div>
+
+                    ${a.is_unlocked ? `
+                      <button type="button" class="btn-secondary danger btn-admin-revoke-award" data-user-id="${ctx.userId}" data-award-id="${a.id}" style="padding: 4px 8px; font-size: 11px;">
+                        Снять
+                      </button>
+                    ` : `
+                      <button type="button" class="btn-create-topic btn-admin-grant-award" data-user-id="${ctx.userId}" data-award-id="${a.id}" style="padding: 4px 10px; font-size: 11px;">
+                        Выдать
+                      </button>
+                    `}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   attachModalEvents();
 }
 
@@ -1385,4 +1591,132 @@ function attachModalEvents() {
       }
     };
   }
+
+  // -----------------------------------------------------------
+  // Reputation Modal Events
+  // -----------------------------------------------------------
+  let selectedRepDelta = 1;
+  const btnRepPlus = document.getElementById('btn-rep-choice-plus');
+  const btnRepMinus = document.getElementById('btn-rep-choice-minus');
+  const btnSubmitRep = document.getElementById('btn-submit-give-rep');
+
+  if (btnRepPlus && btnRepMinus) {
+    btnRepPlus.onclick = () => {
+      selectedRepDelta = 1;
+      btnRepPlus.style.border = '1px solid #10B981';
+      btnRepPlus.style.background = 'rgba(16,185,129,0.15)';
+      btnRepPlus.style.color = '#10B981';
+      btnRepMinus.style.border = '1px solid #2A344A';
+      btnRepMinus.style.background = '#0E121C';
+      btnRepMinus.style.color = '#8A96A6';
+    };
+
+    btnRepMinus.onclick = () => {
+      selectedRepDelta = -1;
+      btnRepMinus.style.border = '1px solid #FF1F36';
+      btnRepMinus.style.background = 'rgba(255,31,54,0.15)';
+      btnRepMinus.style.color = '#FF1F36';
+      btnRepPlus.style.border = '1px solid #2A344A';
+      btnRepPlus.style.background = '#0E121C';
+      btnRepPlus.style.color = '#8A96A6';
+    };
+  }
+
+  if (btnSubmitRep) {
+    btnSubmitRep.onclick = async () => {
+      const targetUserId = btnSubmitRep.getAttribute('data-user-id');
+      const postId = btnSubmitRep.getAttribute('data-post-id') || null;
+      const reasonInput = document.getElementById('rep-input-reason');
+      const reason = reasonInput?.value?.trim() || '';
+
+      if (!targetUserId) {
+        alert('Пользователь не найден');
+        return;
+      }
+
+      try {
+        btnSubmitRep.disabled = true;
+        const res = await api.users.giveReputation(targetUserId, {
+          delta: selectedRepDelta,
+          reason,
+          post_id: postId
+        });
+
+        closeModal();
+        playSound('success');
+        alert(res.message || 'Репутация успешно обновлена!');
+        router.resolve();
+      } catch (err) {
+        alert(err.message || 'Ошибка изменения репутации');
+        btnSubmitRep.disabled = false;
+      }
+    };
+  }
+
+  // -----------------------------------------------------------
+  // Admin User Awards & Levels Modal Events
+  // -----------------------------------------------------------
+  const btnAdminSaveStats = document.getElementById('btn-admin-save-stats');
+  if (btnAdminSaveStats) {
+    btnAdminSaveStats.onclick = async () => {
+      const userId = btnAdminSaveStats.getAttribute('data-user-id');
+      const level = parseInt(document.getElementById('admin-user-level-input')?.value) || 1;
+      const current_xp = parseInt(document.getElementById('admin-user-xp-input')?.value) || 0;
+      const reputation = parseInt(document.getElementById('admin-user-rep-input')?.value) || 0;
+
+      try {
+        btnAdminSaveStats.disabled = true;
+        await api.admin.updateUserStats(userId, { level, current_xp, reputation });
+        playSound('success');
+        alert('Показатели пользователя успешно сохранены!');
+        if (state.modalContext) {
+          state.modalContext.level = level;
+          state.modalContext.current_xp = current_xp;
+          state.modalContext.reputation = reputation;
+        }
+        btnAdminSaveStats.disabled = false;
+      } catch (err) {
+        alert(err.message || 'Ошибка сохранения показателей');
+        btnAdminSaveStats.disabled = false;
+      }
+    };
+  }
+
+  document.querySelectorAll('.btn-admin-grant-award').forEach(btn => {
+    btn.onclick = async () => {
+      const userId = btn.getAttribute('data-user-id');
+      const awardId = btn.getAttribute('data-award-id');
+      const reason = prompt('Укажите причину или описание выдачи награды:', 'Награждён администрацией форума') || 'Выдано администратором';
+      if (!userId || !awardId) return;
+
+      try {
+        btn.disabled = true;
+        await api.admin.grantAward(userId, { award_id: awardId, reason });
+        playSound('success');
+        await openModal('admin_user_awards', { ...state.modalContext, userId });
+      } catch (err) {
+        alert(err.message || 'Ошибка выдачи награды');
+        btn.disabled = false;
+      }
+    };
+  });
+
+  document.querySelectorAll('.btn-admin-revoke-award').forEach(btn => {
+    btn.onclick = async () => {
+      const userId = btn.getAttribute('data-user-id');
+      const awardId = btn.getAttribute('data-award-id');
+      if (!confirm('Вы действительно хотите снять эту награду с пользователя?')) return;
+      if (!userId || !awardId) return;
+
+      try {
+        btn.disabled = true;
+        await api.admin.revokeAward(userId, awardId);
+        playSound('success');
+        await openModal('admin_user_awards', { ...state.modalContext, userId });
+      } catch (err) {
+        alert(err.message || 'Ошибка отзыва награды');
+        btn.disabled = false;
+      }
+    };
+  });
 }

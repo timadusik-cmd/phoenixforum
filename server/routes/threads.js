@@ -92,6 +92,14 @@ router.get('/:id', optionalAuth, (req, res) => {
           role_badge: p.author_badge,
           role_color: p.author_color
         }),
+        author_awards: db.prepare(`
+          SELECT a.id, a.number, a.title, a.icon_key 
+          FROM user_awards ua 
+          JOIN awards a ON ua.award_id = a.id 
+          WHERE ua.user_id = ? 
+          ORDER BY a.number ASC 
+          LIMIT 6
+        `).all(p.author_id),
         reactions: rxList.map(r => ({
           type: r.reaction_type,
           count: r.count,

@@ -8543,6 +8543,535 @@ input, textarea, select {
   border-radius: 12px;
 }
 
+/* ==========================================================================
+   PHOENIX FORUM AWARDS & 50 LEVELS PROGRESSION SYSTEM (Reference Match)
+   ========================================================================== */
 
+/* 1. Profile XP & Level Showcase */
+.profile-xp-card {
+  background: linear-gradient(135deg, #0B0E15 0%, #101522 100%);
+  border: 1px solid #1C2333;
+  border-radius: 12px;
+  padding: 18px 22px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  position: relative;
+  overflow: hidden;
+}
 
+.profile-xp-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #FF1F36 0%, #FF6B00 50%, transparent 100%);
+}
 
+.profile-xp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.profile-level-badge-large {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.level-shield-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.level-shield-wrap:hover {
+  transform: scale(1.08);
+}
+
+.level-milestone-crown {
+  position: absolute;
+  top: -12px;
+  color: #FFAE00;
+  filter: drop-shadow(0 0 6px rgba(255, 174, 0, 0.7));
+  animation: crownFloat 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes crownFloat {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-2px); }
+}
+
+.level-info-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.level-current-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.5px;
+}
+
+.level-current-title .level-highlight {
+  color: #FF334B;
+  text-shadow: 0 0 10px rgba(255, 31, 54, 0.4);
+}
+
+.level-sub-meta {
+  font-size: 12px;
+  color: #8A96A6;
+  margin-top: 2px;
+}
+
+.profile-xp-nums {
+  text-align: right;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.xp-current-val {
+  font-size: 16px;
+  font-weight: 800;
+  color: #FFFFFF;
+}
+
+.xp-current-val span {
+  color: #FF334B;
+}
+
+.xp-percent-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(255, 31, 54, 0.15);
+  border: 1px solid rgba(255, 31, 54, 0.3);
+  color: #FF4D5E;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+.profile-xp-track-outer {
+  position: relative;
+  width: 100%;
+  height: 12px;
+  background: #06080C;
+  border: 1px solid #1A2130;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
+}
+
+.profile-xp-fill {
+  height: 100%;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #FF1F36 0%, #FF5A36 60%, #FFA726 100%);
+  box-shadow: 0 0 16px rgba(255, 31, 54, 0.65);
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.profile-xp-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  background: #FFFFFF;
+  box-shadow: 0 0 8px #FFFFFF;
+  border-radius: 50%;
+  opacity: 0.7;
+}
+
+.profile-xp-footer-hints {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  color: #64748B;
+  margin-top: 10px;
+}
+
+.profile-xp-footer-hints strong {
+  color: #CBD5E1;
+}
+
+/* 2. 20 Forum Awards Reference Grid */
+.profile-awards-showcase-section {
+  background: #080B11;
+  border: 1px solid #171E2D;
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.awards-showcase-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #181F2E;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.awards-title-group h2 {
+  font-size: 19px;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.awards-title-group h2 .awards-count-num {
+  color: #FF2338;
+  font-size: 22px;
+  text-shadow: 0 0 12px rgba(255, 35, 56, 0.5);
+}
+
+.awards-title-group p {
+  font-size: 12px;
+  color: #7A8699;
+  margin: 4px 0 0 0;
+}
+
+.awards-unlocked-counter-badge {
+  background: rgba(255, 31, 54, 0.12);
+  border: 1px solid rgba(255, 31, 54, 0.35);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #FF334B;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.awards-ref-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 1200px) {
+  .awards-ref-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+@media (max-width: 900px) {
+  .awards-ref-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .awards-ref-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Individual Reference Award Card */
+.award-ref-card {
+  background: #090C13;
+  border: 1px solid #161D2B;
+  border-radius: 10px;
+  padding: 16px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  transition: all 0.25s ease;
+  min-height: 160px;
+  cursor: pointer;
+}
+
+.award-ref-card:hover {
+  transform: translateY(-3px);
+  border-color: #FF2338;
+  box-shadow: 0 8px 24px rgba(255, 35, 56, 0.15);
+}
+
+.award-ref-card.unlocked {
+  background: radial-gradient(circle at center 40%, rgba(255, 31, 54, 0.12) 0%, #090C13 75%);
+  border-color: rgba(255, 31, 54, 0.45);
+  box-shadow: 0 0 18px rgba(255, 31, 54, 0.15);
+}
+
+.award-ref-card.unlocked:hover {
+  border-color: #FF1F36;
+  box-shadow: 0 0 26px rgba(255, 31, 54, 0.35);
+}
+
+.award-ref-card.locked {
+  opacity: 0.42;
+  filter: grayscale(0.8);
+}
+
+.award-ref-card.locked:hover {
+  opacity: 0.75;
+  filter: grayscale(0.3);
+  border-color: #2A364E;
+}
+
+.award-card-num {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #FF2338;
+  opacity: 0.7;
+  letter-spacing: 0.5px;
+}
+
+.award-glow-circle {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 6px 0 12px;
+  position: relative;
+  transition: all 0.25s ease;
+}
+
+.award-ref-card.unlocked .award-glow-circle {
+  background: radial-gradient(circle, rgba(255, 35, 56, 0.28) 0%, rgba(255, 35, 56, 0.05) 70%, transparent 100%);
+  border: 1px solid rgba(255, 35, 56, 0.4);
+  box-shadow: 0 0 20px rgba(255, 35, 56, 0.35);
+}
+
+.award-ref-card.locked .award-glow-circle {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.award-icon-svg {
+  width: 44px;
+  height: 44px;
+  color: #FF2338;
+  filter: drop-shadow(0 0 8px rgba(255, 35, 56, 0.6));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.award-ref-card.locked .award-icon-svg {
+  color: #64748B;
+  filter: none;
+}
+
+.award-card-title {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #FFFFFF;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  line-height: 1.3;
+  margin-top: auto;
+  padding: 0 4px;
+}
+
+.award-ref-card.locked .award-card-title {
+  color: #7A8699;
+}
+
+.award-status-tag {
+  font-size: 9.5px;
+  font-weight: 700;
+  margin-top: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.4px;
+}
+
+.award-ref-card.unlocked .award-status-tag {
+  color: #10B981;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.award-ref-card.locked .award-status-tag {
+  color: #64748B;
+  background: rgba(100, 116, 139, 0.1);
+}
+
+/* 3. 50 Forum Levels Showcase Grid */
+.profile-levels-showcase-section {
+  background: #080B11;
+  border: 1px solid #171E2D;
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.levels-ref-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 1100px) {
+  .levels-ref-grid {
+    grid-template-columns: repeat(8, 1fr);
+  }
+}
+@media (max-width: 800px) {
+  .levels-ref-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+@media (max-width: 500px) {
+  .levels-ref-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.level-showcase-cell {
+  background: #0A0D15;
+  border: 1px solid #161D2B;
+  border-radius: 8px;
+  padding: 10px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.level-showcase-cell:hover {
+  transform: translateY(-2px);
+  border-color: #FF2338;
+  box-shadow: 0 4px 14px rgba(255, 35, 56, 0.2);
+}
+
+.level-showcase-cell.unlocked {
+  background: radial-gradient(circle at center, rgba(255, 35, 56, 0.15) 0%, #0A0D15 80%);
+  border-color: rgba(255, 35, 56, 0.4);
+}
+
+.level-showcase-cell.current-active {
+  border-color: #FF1F36;
+  box-shadow: 0 0 16px rgba(255, 31, 54, 0.45);
+  background: radial-gradient(circle at center, rgba(255, 31, 54, 0.25) 0%, #0D111A 85%);
+}
+
+.level-showcase-cell.milestone {
+  border-color: rgba(255, 174, 0, 0.35);
+}
+
+.level-showcase-cell.locked {
+  opacity: 0.38;
+}
+
+.level-cell-xp-label {
+  font-size: 9px;
+  color: #64748B;
+  font-weight: 600;
+}
+
+/* 4. Mini Awards Shelf on Post Author Sidebar */
+.author-mini-awards-rack {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding: 6px;
+  background: rgba(14, 18, 27, 0.7);
+  border: 1px solid #1C2333;
+  border-radius: 6px;
+}
+
+.mini-award-item {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  background: rgba(255, 31, 54, 0.1);
+  border: 1px solid rgba(255, 31, 54, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FF334B;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.mini-award-item:hover {
+  transform: scale(1.2);
+  border-color: #FF1F36;
+  box-shadow: 0 0 10px rgba(255, 31, 54, 0.4);
+  z-index: 5;
+}
+
+.mini-award-item svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* 5. Reputation Controls & Details */
+.rep-mini-btn {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #10B981;
+  font-size: 13px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-left: 6px;
+  vertical-align: middle;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.rep-mini-btn:hover {
+  background: #10B981;
+  color: #FFFFFF;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  transform: scale(1.15);
+}
+
+.rep-value-display {
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+.rep-value-display.positive {
+  color: #10B981;
+}
+
+.rep-value-display.negative {
+  color: #FF1F36;
+}
+
+.rep-value-display.zero {
+  color: #8A96A6;
+}

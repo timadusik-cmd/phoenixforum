@@ -4,6 +4,7 @@ import { ICONS } from '../utils/icons.js';
 import { renderRichEditor } from '../components/RichEditor.js';
 import { renderRoleBadge, renderUserBadges } from '../utils/badges.js';
 import { formatTimeAgo } from '../utils/time.js';
+import { renderLevelShield, renderMiniAwards } from '../utils/awards.js';
 
 // Rich Markdown & BBCode parser for post content
 export function formatPostContent(rawText) {
@@ -201,21 +202,32 @@ export function renderThreadView(data) {
                 <div class="post-author-stats">
                   <div class="stat-row">
                     <span class="lbl">Уровень:</span>
-                    <span class="val">${post.author_level || 1}</span>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      ${renderLevelShield(post.author_level || 1, { size: 20 })}
+                      <span class="val" style="font-weight: 700;">${post.author_level || 1}</span>
+                    </div>
                   </div>
                   <div class="stat-row">
                     <span class="lbl">Репутация:</span>
-                    <span class="val" style="color: #10B981;">+${post.author_reputation || 0}</span>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <span class="val" style="color: #10B981; font-weight: 700;">${(post.author_reputation ?? 0) >= 0 ? '+' : ''}${post.author_reputation ?? 0}</span>
+                      ${user && user.id !== post.author_id ? `
+                        <button type="button" class="btn-post-give-rep btn-open-rep-modal" data-user-id="${post.author_id}" data-username="${post.author_name}" data-post-id="${post.id}" title="Изменить репутацию автора">+</button>
+                      ` : ''}
+                    </div>
                   </div>
                   <div class="stat-row">
                     <span class="lbl">Сообщений:</span>
-                    <span class="val">${post.author_posts_count || 1}</span>
+                    <span class="val">${post.author_posts_count ?? 1}</span>
                   </div>
                   <div class="stat-row">
                     <span class="lbl">Фракция:</span>
                     <span class="val">${post.author_fraction || 'Гражданский'}</span>
                   </div>
                 </div>
+
+                <!-- Mini Awards Shelf -->
+                ${renderMiniAwards(post.author_awards, 4)}
 
                 ${user && user.id !== post.author_id ? `
                   <button type="button" class="btn-author-pm btn-start-pm-with-user" data-user-id="${post.author_id}" data-username="${post.author_name}" title="Написать личное сообщение">

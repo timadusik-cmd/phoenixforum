@@ -4,6 +4,7 @@ import db from '../db.js';
 import { generateToken, requireAuth, optionalAuth } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import { getUserBadges } from '../utils/userBadges.js';
+import { getLevelProgress } from '../utils/levelAwards.js';
 
 const router = Router();
 
@@ -139,9 +140,16 @@ router.get('/me', requireAuth, (req, res) => {
   const topicsCount = db.prepare('SELECT COUNT(*) as count FROM threads WHERE author_id = ?').get(req.user.id).count;
   const postsCount = db.prepare('SELECT COUNT(*) as count FROM posts WHERE author_id = ?').get(req.user.id).count;
 
+  const levelProgress = getLevelProgress(req.user.current_xp || 0);
+  if (req.user.level !== levelProgress.level) {
+    db.prepare('UPDATE users SET level = ? WHERE id = ?').run(levelProgress.level, req.user.id);
+  }
+
   res.json({
     user: {
       ...req.user,
+      level: levelProgress.level,
+      levelProgress,
       badges: getUserBadges(req.user.id, req.user),
       topicsCount,
       postsCount,

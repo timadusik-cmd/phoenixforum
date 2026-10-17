@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { getUserBadges } from '../utils/userBadges.js';
-import { optionalAuth } from '../middleware/auth.js';
+import { optionalAuth, requireAuth } from '../middleware/auth.js';
+import { getLevelProgress, checkAndGrantUserAwards, getUserAwardsFull, AWARDS_LIST } from '../utils/levelAwards.js';
 
 // Ensure last_seen_at column exists in users table
 try {
@@ -214,6 +215,11 @@ router.get('/stats/online', optionalAuth, (req, res) => {
   }
 });
 
+// GET All 20 Official Forum Awards
+router.get('/awards/all', (req, res) => {
+  res.json({ awards: AWARDS_LIST });
+});
+
 // GET User Profile by ID or Username
 router.get('/:idOrName', (req, res) => {
   try {
@@ -229,6 +235,21 @@ router.get('/:idOrName', (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'Пользователь не найден.' });
     }
+
+    // Auto-check and grant any qualified awards
+    checkAndGrantUserAwards(db, user.id);
+
+    // Calculate level progression
+    const levelProgress = getLevelProgress(user.current_xp || 0);
+
+    // If level in DB doesn't match calculated level, sync it
+    if (user.level !== levelProgress.level) {
+      db.prepare('UPDATE users SET level = ? WHERE id = ?').run(levelProgress.level, user.id);
+      user.level = levelProgress.level;
+    }
+
+    // Get user awards full status (all 20 with unlocked true/false)
+    const awards = getUserAwardsFull(db, user.id);
 
     const topicsCount = db.prepare('SELECT COUNT(*) as count FROM threads WHERE author_id = ?').get(user.id).count;
     const postsCount = db.prepare('SELECT COUNT(*) as count FROM posts WHERE author_id = ?').get(user.id).count;
@@ -258,6 +279,8 @@ router.get('/:idOrName', (req, res) => {
       user: {
         ...user,
         badges: getUserBadges(user.id, user),
+        levelProgress,
+        awards,
         topicsCount,
         postsCount
       },
@@ -270,4 +293,97 @@ router.get('/:idOrName', (req, res) => {
   }
 });
 
+// POST Give or Change Reputation
+router.post('/:id/reputation', requireAuth, (req, res) => {
+  try {
+    const targetUserId = req.params.id;
+    const { delta = 1, reason = '', post_id = null } = req.body;
+
+    if (req.user.id === targetUserId) {
+      return res.status(400).json({ error: 'Вы не можете изменять репутацию самому себе.' });
+    }
+
+    const targetUser = db.prepare('SELECT id, username, reputation FROM users WHERE id = ?').get(targetUserId);
+    if (!targetUser) {
+      return res.status(404).json({ error: 'Пользователь не найден.' });
+    }
+
+    const numDelta = parseInt(delta) >= 0 ? 1 : -1;
+    const cleanReason = String(reason || '').trim().substring(0, 200) || (numDelta > 0 ? 'Благодарность от пользователя' : 'Понижение репутации');
+
+    // Anti-spam: check cooldown (1 hour per target user)
+    const recentVote = db.prepare(`
+      SELECT created_at FROM reputation_logs 
+      WHERE target_user_id = ? AND giver_user_id = ?
+      ORDER BY created_at DESC LIMIT 1
+    `).get(targetUserId, req.user.id);
+
+    if (recentVote) {
+      const diffMs = Date.now() - new Date(recentVote.created_at).getTime();
+      const oneHour = 60 * 60 * 1000;
+      if (diffMs < oneHour) {
+        const minutesLeft = Math.ceil((oneHour - diffMs) / 60000);
+        return res.status(429).json({ error: `Вы уже изменяли репутацию этому пользователю. Подождите ещё ${minutesLeft} мин.` });
+      }
+    }
+
+    // Insert log
+    const logId = 'replog_' + Date.now() + '_' + Math.round(Math.random() * 1000);
+    db.prepare(`
+      INSERT INTO reputation_logs (id, target_user_id, giver_user_id, delta, reason, post_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(logId, targetUserId, req.user.id, numDelta, cleanReason, post_id || null);
+
+    // Update target user's reputation
+    db.prepare('UPDATE users SET reputation = reputation + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(numDelta, targetUserId);
+
+    // Notification to recipient
+    const sign = numDelta > 0 ? '+' : '';
+    db.prepare(`
+      INSERT INTO notifications (id, user_id, type, title, text, link, is_read, created_at)
+      VALUES (?, ?, 'reaction', ?, ?, ?, 0, CURRENT_TIMESTAMP)
+    `).run(
+      'notif_' + Date.now() + '_' + Math.round(Math.random() * 1000),
+      targetUserId,
+      `Вам изменили репутацию (${sign}${numDelta})`,
+      `${req.user.username} выставил вам ${sign}${numDelta} в репутацию: «${cleanReason}»`,
+      `/forum/profile/${targetUser.username}`
+    );
+
+    // Check awards for target user (e.g. award_17 "ДРУГ СООБЩЕСТВА" for rep >= 15)
+    checkAndGrantUserAwards(db, targetUserId);
+
+    const updatedRep = db.prepare('SELECT reputation FROM users WHERE id = ?').get(targetUserId).reputation;
+
+    res.json({
+      message: `Репутация пользователя ${targetUser.username} успешно изменена на ${sign}${numDelta}!`,
+      newReputation: updatedRep
+    });
+  } catch (err) {
+    console.error('Error changing reputation:', err);
+    res.status(500).json({ error: 'Ошибка при изменении репутации.' });
+  }
+});
+
+// GET Reputation Logs
+router.get('/:id/reputation/logs', (req, res) => {
+  try {
+    const logs = db.prepare(`
+      SELECT rl.*, u.username as giver_username, u.avatar as giver_avatar, u.role_badge as giver_badge, u.role_color as giver_badge_color
+      FROM reputation_logs rl
+      JOIN users u ON rl.giver_user_id = u.id
+      WHERE rl.target_user_id = ?
+      ORDER BY rl.created_at DESC
+      LIMIT 30
+    `).all(req.params.id);
+
+    res.json({ logs });
+  } catch (err) {
+    console.error('Error fetching reputation logs:', err);
+    res.status(500).json({ error: 'Ошибка при загрузке истории репутации.' });
+  }
+});
+
 export default router;
+
