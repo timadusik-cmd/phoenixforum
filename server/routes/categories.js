@@ -27,7 +27,8 @@ router.get('/', (req, res) => {
     // Attach last message for each section
     const getLastMsg = db.prepare(`
       SELECT p.id, p.created_at, p.content, t.id as thread_id, t.title as thread_title,
-             u.id as author_id, u.username as author_name, u.avatar as author_avatar
+             u.id as author_id, u.username as author_name, u.avatar as author_avatar,
+             u.avatar_decoration as author_avatar_decoration
       FROM posts p
       JOIN threads t ON p.thread_id = t.id
       JOIN users u ON p.author_id = u.id
@@ -46,6 +47,7 @@ router.get('/', (req, res) => {
           authorId: lastMsg.author_id,
           authorName: lastMsg.author_name,
           authorAvatar: lastMsg.author_avatar,
+          authorAvatarDecoration: lastMsg.author_avatar_decoration,
           createdAt: lastMsg.created_at
         } : null
       };

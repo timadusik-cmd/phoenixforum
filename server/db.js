@@ -29,6 +29,7 @@ export function initDatabase() {
       character_name TEXT,
       password_hash TEXT NOT NULL,
       avatar TEXT DEFAULT '/assets/avatar_ivan.jpg',
+      avatar_decoration TEXT DEFAULT NULL,
       cover_banner TEXT DEFAULT '/assets/hero_banner.jpg',
       role TEXT DEFAULT 'player', -- 'player', 'helper', 'moderator', 'admin', 'superadmin'
       role_color TEXT DEFAULT '#FF8A00',
@@ -337,7 +338,8 @@ export function initDatabase() {
   try { db.prepare("ALTER TABLE categories ADD COLUMN badge_text TEXT").run(); } catch {}
   try { db.prepare("ALTER TABLE categories ADD COLUMN badge_color TEXT DEFAULT '#FF1F36'").run(); } catch {}
   try { db.prepare("ALTER TABLE categories ADD COLUMN min_role_to_view TEXT DEFAULT 'all'").run(); } catch {}
-  try { db.prepare("ALTER TABLE custom_badges ADD COLUMN style TEXT DEFAULT 'classic'").run(); } catch {}
+  try { db.prepare("ALTER TABLE users ADD COLUMN avatar_decoration TEXT DEFAULT NULL").run(); } catch {}
+  try { db.prepare("ALTER TABLE users ADD COLUMN last_seen_at DATETIME DEFAULT NULL").run(); } catch {}
 
   // Initialize standard forum categories if empty and link default sections
   try {

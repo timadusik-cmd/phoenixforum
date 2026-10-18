@@ -191,6 +191,7 @@ export function renderThreadView(data) {
               <div class="post-author-sidebar">
                 <a href="/forum/member/${post.author_id}" data-link class="post-avatar-wrap">
                   <img src="${post.author_avatar || '/assets/avatar_ivan.jpg'}" alt="${post.author_name}" class="post-author-avatar" />
+                  ${post.author_avatar_decoration ? `<img src="${post.author_avatar_decoration}" class="avatar-decoration post-decoration" alt="" />` : ''}
                 </a>
                 <a href="/forum/member/${post.author_id}" data-link class="post-author-name" style="color: ${post.author_color || '#FF8A00'};">
                   ${post.author_name}

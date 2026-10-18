@@ -41,6 +41,13 @@ if (!fs.existsSync(uploadsDir)) {
 }
 app.use('/uploads', express.static(uploadsDir));
 
+// Serve avatar decorations
+const decorationsDir = path.join(__dirname, '../public/decorations');
+if (!fs.existsSync(decorationsDir)) {
+  fs.mkdirSync(decorationsDir, { recursive: true });
+}
+app.use('/decorations', express.static(decorationsDir));
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoriesRoutes);

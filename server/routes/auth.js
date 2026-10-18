@@ -59,7 +59,7 @@ router.post('/register', (req, res) => {
     `).run(userId, emailClean, userClean, userClean.replace(/_/g, ' '), passwordHash);
 
     const newUser = db.prepare(`
-      SELECT id, email, username, character_name, avatar, role, role_color, role_badge, status, 
+      SELECT id, email, username, character_name, avatar, avatar_decoration, role, role_color, role_badge, status, 
              level, current_xp, reputation, fraction, server, bio, signature, created_at
       FROM users WHERE id = ?
     `).get(userId);
@@ -177,7 +177,7 @@ router.put('/profile', requireAuth, (req, res) => {
     `).run(character_name, bio, signature, discord_tag, telegram_tag, vk_link, fraction, req.user.id);
 
     const updatedUser = db.prepare(`
-      SELECT id, email, username, character_name, avatar, cover_banner, role, role_color, role_badge, status, 
+      SELECT id, email, username, character_name, avatar, avatar_decoration, cover_banner, role, role_color, role_badge, status, 
              level, current_xp, reputation, fraction, server, bio, signature, discord_tag, telegram_tag, vk_link, created_at
       FROM users WHERE id = ?
     `).get(req.user.id);

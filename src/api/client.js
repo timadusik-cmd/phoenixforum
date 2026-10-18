@@ -210,7 +210,15 @@ export const api = {
     // User Multi-Badges
     getUserBadges: (userId) => request(`/api/admin/users/${encodeURIComponent(userId)}/badges`),
     assignUserBadge: (userId, badgeKey, isPrimary = false) => request(`/api/admin/users/${encodeURIComponent(userId)}/badges`, { method: 'POST', body: { badge_key: badgeKey, is_primary: isPrimary } }),
-    removeUserBadge: (userId, badgeKey) => request(`/api/admin/users/${encodeURIComponent(userId)}/badges/${encodeURIComponent(badgeKey)}`, { method: 'DELETE' })
+    removeUserBadge: (userId, badgeKey) => request(`/api/admin/users/${encodeURIComponent(userId)}/badges/${encodeURIComponent(badgeKey)}`, { method: 'DELETE' }),
+
+    // Avatar Decorations (Exclusive to Ivan_Petrov)
+    getDecorations: () => request('/api/admin/decorations'),
+    assignUserDecoration: (userId, data) => {
+      const body = typeof data === 'string' ? { decoration_url: data } : data;
+      return request(`/api/admin/users/${encodeURIComponent(userId)}/decoration`, { method: 'POST', body });
+    },
+    removeUserDecoration: (userId) => request(`/api/admin/users/${encodeURIComponent(userId)}/decoration`, { method: 'DELETE' })
   },
 
   // Uploads

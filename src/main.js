@@ -287,6 +287,7 @@ router.addRoute('/admin', async (params, query) => {
     let users = [];
     let customBadges = [];
     let auditLogs = [];
+    let decorationsData = null;
 
     if (tab === 'reports') {
       const repData = await api.reports.getReports('pending');
@@ -305,6 +306,18 @@ router.addRoute('/admin', async (params, query) => {
     } else if (tab === 'custom_badges') {
       const cbData = await api.admin.getCustomBadges().catch(() => ({ customBadges: [] }));
       customBadges = cbData.customBadges || [];
+    } else if (tab === 'decorations') {
+      const isIvan = state.user && (state.user.username === 'Ivan_Petrov' || state.user.id === 'u_ivan_petrov');
+      if (!isIvan) {
+        showToast('Доступ к украшениям разрешён исключительно создателю проекта Ivan_Petrov.');
+        router.navigate('/admin?tab=overview');
+        return;
+      }
+      try {
+        decorationsData = await api.admin.getDecorations();
+      } catch (e) {
+        console.error('Error fetching decorations data:', e);
+      }
     } else if (tab === 'logs') {
       const lData = await api.admin.getAuditLogs();
       auditLogs = lData.logs || [];
@@ -318,7 +331,8 @@ router.addRoute('/admin', async (params, query) => {
       forumCategories: state.forumCategories || [],
       users,
       customBadges,
-      auditLogs
+      auditLogs,
+      decorationsData
     }));
   } catch (err) {
     renderAppShell(`<div class="empty-threads-card"><h3>Ошибка доступа</h3><p>${err.message}</p></div>`);
@@ -1280,6 +1294,225 @@ function attachGlobalEvents() {
       }
     };
   });
+
+  // -------------------------------------------------------------
+  // Avatar Decorations Management (Restricted to Ivan_Petrov)
+  // -------------------------------------------------------------
+  const assignUserSelect = document.getElementById('assign-user-select');
+  const assignDecorationSelect = document.getElementById('assign-decoration-select');
+  const btnSubmitAssignDecoration = document.getElementById('btn-submit-assign-decoration');
+  const btnSubmitRemoveDecoration = document.getElementById('btn-submit-remove-decoration');
+
+  function updateLiveDecorationPreview() {
+    if (!assignUserSelect || !assignDecorationSelect) return;
+    const selectedUserOpt = assignUserSelect.selectedOptions?.[0];
+    const selectedDecOpt = assignDecorationSelect.selectedOptions?.[0];
+
+    const liveAvatarImg = document.getElementById('assign-live-avatar-img');
+    const liveDecImg = document.getElementById('assign-live-decoration-img');
+    const liveUsername = document.getElementById('assign-preview-username');
+    const liveDecName = document.getElementById('assign-preview-decname');
+
+    if (selectedUserOpt) {
+      const avatarUrl = selectedUserOpt.getAttribute('data-avatar') || '/assets/avatar_ivan.jpg';
+      const uname = selectedUserOpt.getAttribute('data-username') || 'Пользователь';
+      if (liveAvatarImg) liveAvatarImg.src = avatarUrl;
+      if (liveUsername) liveUsername.textContent = uname;
+    }
+
+    if (selectedDecOpt) {
+      const decUrl = selectedDecOpt.getAttribute('data-url') || selectedDecOpt.value;
+      const dname = selectedDecOpt.getAttribute('data-name') || 'Украшение';
+      if (liveDecImg) {
+        liveDecImg.src = decUrl;
+        liveDecImg.style.display = 'block';
+      }
+      if (liveDecName) liveDecName.textContent = dname;
+    }
+  }
+
+  if (assignUserSelect && assignDecorationSelect) {
+    // Check if URL specified assign_user
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetUserId = urlParams.get('assign_user');
+    if (targetUserId) {
+      assignUserSelect.value = targetUserId;
+    }
+
+    assignUserSelect.onchange = updateLiveDecorationPreview;
+    assignDecorationSelect.onchange = updateLiveDecorationPreview;
+    updateLiveDecorationPreview();
+
+    if (btnSubmitAssignDecoration) {
+      btnSubmitAssignDecoration.onclick = async () => {
+        const userId = assignUserSelect.value;
+        const selectedDecOpt = assignDecorationSelect.selectedOptions?.[0];
+        const decorationUrl = selectedDecOpt?.getAttribute('data-url') || selectedDecOpt?.value;
+
+        if (!userId) {
+          showToast('Выберите пользователя для выдачи украшения');
+          return;
+        }
+        if (!decorationUrl) {
+          showToast('Выберите украшение из каталога');
+          return;
+        }
+
+        const originalBtnHtml = btnSubmitAssignDecoration.innerHTML;
+        btnSubmitAssignDecoration.disabled = true;
+        btnSubmitAssignDecoration.innerText = 'Сохранение...';
+
+        try {
+          const res = await api.admin.assignUserDecoration(userId, {
+            decoration_url: decorationUrl,
+            decoration_id: selectedDecOpt?.value
+          });
+          showToast(res.message || 'Украшение успешно выдано!');
+          playSound('success');
+
+          if (state.user && state.user.id === userId) {
+            state.user.avatar_decoration = decorationUrl;
+            notifyStateChange();
+          }
+
+          router.resolve();
+        } catch (err) {
+          alert(err.message || 'Ошибка выдачи украшения');
+          btnSubmitAssignDecoration.disabled = false;
+          btnSubmitAssignDecoration.innerHTML = originalBtnHtml;
+        }
+      };
+    }
+
+    if (btnSubmitRemoveDecoration) {
+      btnSubmitRemoveDecoration.onclick = async () => {
+        const userId = assignUserSelect.value;
+        const selectedUserOpt = assignUserSelect.selectedOptions?.[0];
+        const uname = selectedUserOpt?.getAttribute('data-username') || 'пользователя';
+
+        if (!userId) {
+          showToast('Выберите пользователя');
+          return;
+        }
+
+        if (!confirm(`Вы действительно хотите снять украшение с профиля «${uname}»?`)) return;
+
+        try {
+          const res = await api.admin.removeUserDecoration(userId);
+          showToast(res.message || 'Украшение успешно снято');
+          playSound('click');
+
+          if (state.user && state.user.id === userId) {
+            state.user.avatar_decoration = null;
+            notifyStateChange();
+          }
+
+          router.resolve();
+        } catch (err) {
+          alert(err.message || 'Ошибка при снятии украшения');
+        }
+      };
+    }
+  }
+
+  // Quick Edit / Remove wearer in decorations table
+  document.querySelectorAll('[data-action="quick-edit-wearer"]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const uid = btn.getAttribute('data-user-id');
+      const decUrl = btn.getAttribute('data-dec-url');
+      if (assignUserSelect) {
+        assignUserSelect.value = uid;
+      }
+      if (assignDecorationSelect && decUrl) {
+        const matchOpt = Array.from(assignDecorationSelect.options).find(o => o.getAttribute('data-url') === decUrl || o.value === decUrl);
+        if (matchOpt) assignDecorationSelect.value = matchOpt.value;
+      }
+      const assignCard = document.getElementById('decorations-assign-card');
+      if (assignCard) {
+        assignCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        assignCard.style.boxShadow = '0 0 25px rgba(255, 138, 0, 0.4)';
+        setTimeout(() => { if (assignCard) assignCard.style.boxShadow = ''; }, 1500);
+      }
+      updateLiveDecorationPreview();
+    };
+  });
+
+  document.querySelectorAll('[data-action="quick-del-wearer"]').forEach(btn => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      const uid = btn.getAttribute('data-user-id');
+      const uname = btn.getAttribute('data-username') || 'пользователя';
+      if (!confirm(`Снять украшение с аккаунта ${uname}?`)) return;
+
+      try {
+        const res = await api.admin.removeUserDecoration(uid);
+        showToast(res.message || 'Украшение снято');
+        if (state.user && state.user.id === uid) {
+          state.user.avatar_decoration = null;
+          notifyStateChange();
+        }
+        router.resolve();
+      } catch (err) {
+        alert(err.message || 'Ошибка снятия украшения');
+      }
+    };
+  });
+
+  // Pick decoration card from gallery
+  document.querySelectorAll('[data-action="pick-dec-card"], .dec-card').forEach(card => {
+    card.onclick = (e) => {
+      const decId = card.getAttribute('data-dec-id') || card.closest('.dec-card')?.getAttribute('data-dec-id');
+      if (!decId || !assignDecorationSelect) return;
+
+      assignDecorationSelect.value = decId;
+      updateLiveDecorationPreview();
+
+      const assignCard = document.getElementById('decorations-assign-card');
+      if (assignCard) {
+        assignCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        assignCard.style.boxShadow = '0 0 25px rgba(255, 31, 54, 0.4)';
+        setTimeout(() => { if (assignCard) assignCard.style.boxShadow = ''; }, 1500);
+      }
+    };
+  });
+
+  // Filter gallery by category pills and search input
+  const decCatPills = document.querySelectorAll('.dec-cat-pill');
+  const decSearchInput = document.getElementById('decoration-gallery-search');
+
+  function filterDecorationsGallery() {
+    const activePill = document.querySelector('.dec-cat-pill.active');
+    const selectedCat = activePill ? activePill.getAttribute('data-cat-id') : 'all';
+    const searchQuery = decSearchInput ? decSearchInput.value.toLowerCase().trim() : '';
+
+    document.querySelectorAll('.dec-card').forEach(card => {
+      const cardCat = card.getAttribute('data-category') || '';
+      const cardName = (card.getAttribute('data-dec-name') || '').toLowerCase();
+      const cardDesc = (card.querySelector('.dec-card-desc')?.textContent || '').toLowerCase();
+
+      const catMatches = (selectedCat === 'all' || cardCat === selectedCat);
+      const searchMatches = !searchQuery || cardName.includes(searchQuery) || cardDesc.includes(searchQuery);
+
+      if (catMatches && searchMatches) {
+        card.style.display = 'flex';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  }
+
+  decCatPills.forEach(pill => {
+    pill.onclick = () => {
+      decCatPills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      filterDecorationsGallery();
+    };
+  });
+
+  if (decSearchInput) {
+    decSearchInput.oninput = filterDecorationsGallery;
+  }
 
   // -------------------------------------------------------------
   // Forum Categories & Sections Admin Management

@@ -63,6 +63,7 @@ export function renderMemberProfile(data) {
         <div class="profile-hero-body">
           <div class="profile-page-avatar-wrap">
             <img src="${user.avatar || '/assets/avatar_ivan.jpg'}" alt="${user.username}" class="profile-page-avatar" id="profile-page-avatar-img" />
+            ${user.avatar_decoration ? `<img src="${user.avatar_decoration}" class="avatar-decoration profile-decoration" alt="" />` : ''}
             <span class="profile-avatar-status-badge ${user.status || 'online'}"></span>
             ${isMe ? `
               <button type="button" class="btn-avatar-camera-overlay" id="btn-change-avatar-profile" title="Сменить аватарку">

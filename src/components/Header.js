@@ -114,7 +114,10 @@ export function renderHeader() {
           <!-- User Chip with Dropdown -->
           <div class="user-chip-dropdown-wrap">
             <button class="user-chip" id="btn-toggle-user-menu">
-              <img src="${state.user.avatar || '/assets/avatar_ivan.jpg'}" alt="${state.user.username}" class="user-chip-avatar" />
+              <div class="user-chip-avatar-wrap">
+                <img src="${state.user.avatar || '/assets/avatar_ivan.jpg'}" alt="${state.user.username}" class="user-chip-avatar" />
+                ${state.user.avatar_decoration ? `<img src="${state.user.avatar_decoration}" class="avatar-decoration" alt="" />` : ''}
+              </div>
               <span class="user-chip-name">${state.user.username}</span>
               <span class="user-chip-arrow">${ICONS.chevronDown}</span>
             </button>

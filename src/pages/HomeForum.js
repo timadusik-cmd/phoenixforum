@@ -32,7 +32,10 @@ function renderSectionCard(cat) {
     const dateStr = formatTimeAgo(cat.lastMessage.createdAt);
     lastMsgHtml = `
       <div class="category-last-msg-card">
-        <img src="${cat.lastMessage.authorAvatar || '/assets/avatar_ivan.jpg'}" alt="${cat.lastMessage.authorName}" class="last-msg-avatar" />
+        <div class="last-msg-avatar-wrap">
+          <img src="${cat.lastMessage.authorAvatar || '/assets/avatar_ivan.jpg'}" alt="${cat.lastMessage.authorName}" class="last-msg-avatar" />
+          ${cat.lastMessage.authorAvatarDecoration ? `<img src="${cat.lastMessage.authorAvatarDecoration}" class="avatar-decoration last-msg-decoration" alt="" />` : ''}
+        </div>
         <div class="last-msg-details">
           <a href="/forum/thread/${cat.lastMessage.threadId}" data-link class="last-msg-topic">
             ${cat.lastMessage.threadTitle}

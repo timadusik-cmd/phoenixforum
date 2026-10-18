@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 import { getUserBadges } from '../utils/userBadges.js';
 import { checkAndGrantUserAwards, getUserAwardsFull, AWARDS_LIST, LEVEL_THRESHOLDS } from '../utils/levelAwards.js';
+import { DECORATIONS, DECORATION_CATEGORIES, getDecorationById } from '../utils/decorations.js';
 
 const router = Router();
 
@@ -825,6 +826,167 @@ router.delete('/users/:id/badges/:badge_key', requireRole('admin'), (req, res) =
   } catch (err) {
     console.error('Error removing badge from user:', err);
     res.status(500).json({ error: 'Ошибка при снятии плашки.' });
+  }
+});
+
+// ==============================================================
+// 7. AVATAR DECORATIONS MANAGEMENT (RESTRICTED TO Ivan_Petrov ONLY)
+// ==============================================================
+
+function requireIvanPetrov(req, res, next) {
+  const isIvan = req.user && (
+    req.user.username === 'Ivan_Petrov' || 
+    req.user.id === 'u_ivan_petrov'
+  );
+  if (!isIvan) {
+    return res.status(403).json({
+      error: 'Доступ к управлению украшениями аватарок разрешён только создателю проекта Ivan_Petrov.'
+    });
+  }
+  next();
+}
+
+// GET all decorations and users with decorations
+router.get('/decorations', requireIvanPetrov, (req, res) => {
+  try {
+    const usersWithDecorations = db.prepare(`
+      SELECT id, username, character_name, avatar, avatar_decoration, role, role_badge, role_color, level
+      FROM users
+      WHERE avatar_decoration IS NOT NULL AND avatar_decoration != ''
+      ORDER BY username ASC
+    `).all();
+
+    const allUsers = db.prepare(`
+      SELECT id, username, character_name, avatar, avatar_decoration, role, role_badge, role_color, level
+      FROM users
+      ORDER BY 
+        CASE role 
+          WHEN 'superadmin' THEN 1 
+          WHEN 'admin' THEN 2 
+          WHEN 'moderator' THEN 3 
+          ELSE 4 
+        END ASC,
+        username ASC
+    `).all();
+
+    res.json({
+      decorations: DECORATIONS,
+      categories: DECORATION_CATEGORIES,
+      usersWithDecorations,
+      allUsers
+    });
+  } catch (err) {
+    console.error('Error fetching admin decorations:', err);
+    res.status(500).json({ error: 'Ошибка при загрузке украшений.' });
+  }
+});
+
+// POST assign decoration to user
+router.post('/users/:id/decoration', requireIvanPetrov, (req, res) => {
+  try {
+    const body = req.body || {};
+    const decoration_id = body.decoration_id;
+    const decoration_url = body.decoration_url;
+
+    const targetUser = db.prepare('SELECT id, username, avatar, avatar_decoration FROM users WHERE id = ?').get(req.params.id);
+    if (!targetUser) {
+      return res.status(404).json({ error: 'Пользователь не найден.' });
+    }
+
+    let decUrl = decoration_url || null;
+    let decName = 'Оформление';
+
+    if (decoration_id) {
+      const found = getDecorationById(decoration_id);
+      if (found) {
+        decUrl = found.url;
+        decName = found.name;
+      }
+    } else if (decoration_url) {
+      const found = getDecorationById(decoration_url);
+      if (found) decName = found.name;
+    }
+
+    db.prepare(`
+      UPDATE users 
+      SET avatar_decoration = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(decUrl, targetUser.id);
+
+    // Send notification to user
+    try {
+      if (decUrl) {
+        db.prepare(`
+          INSERT INTO notifications (id, user_id, type, title, text, link, is_read, created_at)
+          VALUES (?, ?, 'system', 'Вам выдано украшение аватарки', ?, ?, 0, CURRENT_TIMESTAMP)
+        `).run(
+          'notif_' + Date.now(),
+          targetUser.id,
+          `Создатель проекта Ivan_Petrov установил вам оформление «${decName}». Полюбуйтесь им в профиле!`,
+          `/forum/member/${targetUser.id}`
+        );
+      }
+    } catch (notifErr) {
+      console.warn('Could not insert notification:', notifErr.message);
+    }
+
+    // Audit log
+    try {
+      db.prepare(`
+        INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+        VALUES (?, ?, 'set_avatar_decoration', 'user', ?, ?, ?)
+      `).run(
+        'log_' + Date.now(),
+        req.user.id,
+        targetUser.id,
+        decUrl 
+          ? `Выдача украшения «${decName}» [${decUrl}] пользователю ${targetUser.username}` 
+          : `Снятие украшения аватарки у пользователя ${targetUser.username}`,
+        req.ip || ''
+      );
+    } catch (auditErr) {
+      console.warn('Could not insert audit log:', auditErr.message);
+    }
+
+    res.json({
+      message: decUrl 
+        ? `Украшение «${decName}» успешно выдано пользователю ${targetUser.username}!` 
+        : `Украшение снято у пользователя ${targetUser.username}.`,
+      user: {
+        id: targetUser.id,
+        username: targetUser.username,
+        avatar_decoration: decUrl
+      }
+    });
+  } catch (err) {
+    console.error('Error assigning decoration:', err);
+    res.status(500).json({ error: 'Ошибка при сохранении украшения: ' + (err.message || 'неизвестная ошибка') });
+  }
+});
+
+// DELETE remove decoration from user
+router.delete('/users/:id/decoration', requireIvanPetrov, (req, res) => {
+  try {
+    const targetUser = db.prepare('SELECT id, username FROM users WHERE id = ?').get(req.params.id);
+    if (!targetUser) return res.status(404).json({ error: 'Пользователь не найден.' });
+
+    db.prepare('UPDATE users SET avatar_decoration = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(targetUser.id);
+
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'remove_avatar_decoration', 'user', ?, ?, ?)
+    `).run(
+      'log_' + Date.now(),
+      req.user.id,
+      targetUser.id,
+      `Снятие украшения аватарки у пользователя ${targetUser.username}`,
+      req.ip || ''
+    );
+
+    res.json({ message: `Украшение аватарки снято у пользователя ${targetUser.username}.` });
+  } catch (err) {
+    console.error('Error removing decoration:', err);
+    res.status(500).json({ error: 'Ошибка при снятии украшения.' });
   }
 });
 

@@ -48,6 +48,7 @@ export function renderMembersPage(data = {}) {
           <div class="member-card">
             <div class="member-card-avatar-wrap">
               <img src="${u.avatar || '/assets/avatar_ivan.jpg'}" alt="${u.username}" class="member-card-avatar" />
+              ${u.avatar_decoration ? `<img src="${u.avatar_decoration}" class="avatar-decoration member-card-decoration" alt="" />` : ''}
               <span class="avatar-status-dot ${u.status || 'online'}"></span>
             </div>
 

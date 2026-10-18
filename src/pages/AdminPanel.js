@@ -2,6 +2,7 @@
 import { state } from '../state.js';
 import { ICONS, getIcon } from '../utils/icons.js';
 import { BADGES, BADGE_ICONS, renderRoleBadge, renderUserBadges } from '../utils/badges.js';
+import { DECORATIONS, DECORATION_CATEGORIES, getDecorationById } from '../utils/decorations.js';
 
 export function renderAdminPanel(data = {}) {
   const { 
@@ -12,9 +13,11 @@ export function renderAdminPanel(data = {}) {
     forumCategories = [],
     users = [], 
     customBadges = [], 
-    auditLogs = [] 
+    auditLogs = [],
+    decorationsData = null
   } = data;
 
+  const isIvanPetrov = state.user && (state.user.username === 'Ivan_Petrov' || state.user.id === 'u_ivan_petrov');
   const canManageCustomBadges = state.user && ['superadmin', 'admin'].includes(state.user.role);
 
   return `
@@ -46,6 +49,11 @@ export function renderAdminPanel(data = {}) {
           ${canManageCustomBadges ? `
             <a href="/admin?tab=custom_badges" data-link class="filter-tab ${activeTab === 'custom_badges' ? 'active' : ''}">
               👑 Кастомные плашки ${customBadges.length > 0 ? `<span class="admin-tab-counter">${customBadges.length}</span>` : ''}
+            </a>
+          ` : ''}
+          ${isIvanPetrov ? `
+            <a href="/admin?tab=decorations" data-link class="filter-tab ${activeTab === 'decorations' ? 'active' : ''}">
+              Украшения аватарок <span class="admin-tab-counter" style="background: linear-gradient(135deg, #FF1F36, #FF8A00); color: #fff;">57</span>
             </a>
           ` : ''}
           <a href="/admin?tab=logs" data-link class="filter-tab ${activeTab === 'logs' ? 'active' : ''}">Журнал аудита</a>
@@ -85,6 +93,9 @@ export function renderAdminPanel(data = {}) {
             <a href="/admin?tab=users" data-link class="btn-secondary">Выдача ролей пользователям</a>
             ${canManageCustomBadges ? `
               <a href="/admin?tab=custom_badges" data-link class="btn-secondary" style="border-color: #FF2338; color: #FFF;">+ Создать кастомную плашку</a>
+            ` : ''}
+            ${isIvanPetrov ? `
+              <a href="/admin?tab=decorations" data-link class="btn-secondary" style="border-color: #FF8A00; color: #FFF; background: rgba(255, 138, 0, 0.1);">Украшения аватарок (Ivan_Petrov)</a>
             ` : ''}
           </div>
         </div>
@@ -350,7 +361,10 @@ export function renderAdminPanel(data = {}) {
           <div class="admin-users-table">
             ${users.map(u => `
               <div class="admin-user-row" id="user-row-${u.id}">
-                <img src="${u.avatar || '/assets/avatar_ivan.jpg'}" alt="${u.username}" class="admin-user-avatar" />
+                <div class="admin-user-avatar-wrap">
+                  <img src="${u.avatar || '/assets/avatar_ivan.jpg'}" alt="${u.username}" class="admin-user-avatar" />
+                  ${u.avatar_decoration ? `<img src="${u.avatar_decoration}" class="avatar-decoration" alt="" />` : ''}
+                </div>
                 
                 <div class="admin-user-info-col">
                   <div style="font-weight: 700; color: #FFF; font-size: 14px;">${u.username}</div>
@@ -424,6 +438,12 @@ export function renderAdminPanel(data = {}) {
                     <option value="guest" ${u.role === 'guest' ? 'selected' : ''}>👤+ Гость</option>
                     <option value="developer" ${u.role === 'developer' ? 'selected' : ''}>&lt;/&gt; Разработчик</option>
                   </select>
+
+                  ${isIvanPetrov ? `
+                    <a href="/admin?tab=decorations&assign_user=${u.id}" data-link class="btn-secondary" style="padding: 6px 10px; font-size: 11.5px; border-color: rgba(255, 138, 0, 0.4); color: #FFF; display: inline-flex; align-items: center; gap: 4px;" title="Выдать или изменить украшение аватарки">
+                      <span>Украшение</span>
+                    </a>
+                  ` : ''}
 
                   <button class="btn-secondary ${u.is_banned ? '' : 'danger'}" data-action="toggle-ban" data-user-id="${u.id}" data-banned="${u.is_banned}" style="padding: 6px 10px; font-size: 11.5px;">
                     ${u.is_banned ? 'Разблокировать' : 'Забанить'}
@@ -651,6 +671,191 @@ export function renderAdminPanel(data = {}) {
           </div>
         </div>
       ` : ''}
+
+      <!-- Tab 7: Avatar Decorations (Restricted to Ivan_Petrov) -->
+      ${activeTab === 'decorations' ? renderDecorationsTab(decorationsData, isIvanPetrov) : ''}
+    </div>
+  `;
+}
+
+function renderDecorationsTab(decorationsData, isIvanPetrov) {
+  if (!isIvanPetrov) {
+    return `
+      <div class="empty-threads-card">
+        <h3>Доступ запрещён</h3>
+        <p>Управление украшениями аватарок разрешено исключительно создателю проекта Ivan_Petrov.</p>
+      </div>
+    `;
+  }
+
+  const decorations = decorationsData?.decorations || DECORATIONS;
+  const categoriesList = decorationsData?.categories || DECORATION_CATEGORIES;
+  const usersWithDecorations = decorationsData?.usersWithDecorations || [];
+  const allUsers = decorationsData?.allUsers || [];
+
+  return `
+    <div class="admin-section-card decorations-admin-container">
+      <!-- Top Banner / Intro -->
+      <div class="decorations-intro-header">
+        <div class="decorations-intro-icon" style="color: #FF1F36; display: flex; align-items: center; justify-content: center;">
+          ${ICONS.flame}
+        </div>
+        <div class="decorations-intro-text">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <h2 class="decorations-admin-title">Управление украшениями аватарок Discord</h2>
+            <span class="founder-only-badge">🔒 Эксклюзив: Ivan_Petrov</span>
+          </div>
+          <p class="decorations-admin-sub">
+            На форуме загружено <strong>57 официальных Discord APNG-анимаций</strong>. Вы можете в реальном времени примерить и выдать любое украшение любому пользователю сервера.
+          </p>
+        </div>
+      </div>
+
+      <!-- Quick Assignment Bar with LIVE PREVIEW -->
+      <div class="decorations-assign-card" id="decorations-assign-card">
+        <h3 class="assign-card-title">
+          <span>Выдача / Смена украшения пользователю</span>
+        </h3>
+
+        <div class="assign-form-grid">
+          <!-- Live Interactive Avatar Preview Box -->
+          <div class="assign-preview-col">
+            <div class="assign-preview-label">Живой предпросмотр:</div>
+            <div class="assign-avatar-showcase">
+              <div class="avatar-wrap assign-live-avatar-wrap" id="assign-live-avatar-wrap">
+                <img src="/assets/avatar_admin.jpg" alt="Preview Avatar" class="avatar-base-img" id="assign-live-avatar-img" />
+                <img src="/decorations/phoenix.png" class="avatar-decoration" id="assign-live-decoration-img" alt="Decoration Preview" />
+              </div>
+              <div class="assign-preview-meta">
+                <span class="assign-preview-username" id="assign-preview-username">Ivan_Petrov</span>
+                <span class="assign-preview-decname" id="assign-preview-decname">Легендарный Феникс</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Form Inputs -->
+          <div class="assign-inputs-col">
+            <div class="modal-field">
+              <label>1. Выберите пользователя форума:</label>
+              <select class="modal-select" id="assign-user-select">
+                ${allUsers.map(u => `
+                  <option value="${u.id}" data-avatar="${u.avatar || '/assets/avatar_ivan.jpg'}" data-username="${u.username}" data-current-dec="${u.avatar_decoration || ''}">
+                    ${u.username} (${u.role_badge || u.role}) ${u.avatar_decoration ? '• [Уже есть украшение]' : ''}
+                  </option>
+                `).join('')}
+              </select>
+            </div>
+
+            <div class="modal-field">
+              <label>2. Выберите украшение из каталога (57 доступно):</label>
+              <select class="modal-select" id="assign-decoration-select">
+                ${decorations.map(d => `
+                  <option value="${d.id}" data-url="${d.url}" data-name="${d.name}" ${d.id === 'phoenix' ? 'selected' : ''}>
+                    ${d.name} (${d.category})
+                  </option>
+                `).join('')}
+              </select>
+            </div>
+
+            <div class="assign-actions-row">
+              <button type="button" class="btn-create-topic" id="btn-submit-assign-decoration" style="background: linear-gradient(135deg, #FF1F36, #FF8A00); padding: 10px 22px; font-weight: 700;">
+                Выдать выбранное украшение
+              </button>
+              <button type="button" class="btn-secondary danger" id="btn-submit-remove-decoration" style="padding: 10px 18px;">
+                ✕ Снять текущее украшение
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Users With Decorations List -->
+      <div class="decorations-wearers-section">
+        <div class="wearers-section-header">
+          <h3 style="color: #FFF; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+            <span>Пользователи с активными украшениями</span>
+            <span class="wearers-count-pill">${usersWithDecorations.length}</span>
+          </h3>
+        </div>
+
+        ${usersWithDecorations.length > 0 ? `
+          <div class="wearers-grid">
+            ${usersWithDecorations.map(u => {
+              const dec = getDecorationById(u.avatar_decoration) || { name: 'Кастомное', url: u.avatar_decoration };
+              return `
+                <div class="wearer-card" id="wearer-card-${u.id}">
+                  <div class="wearer-avatar-box">
+                    <div class="avatar-wrap" style="width: 58px; height: 58px;">
+                      <img src="${u.avatar || '/assets/avatar_ivan.jpg'}" alt="${u.username}" class="avatar-base-img" />
+                      <img src="${u.avatar_decoration}" class="avatar-decoration" alt="" />
+                    </div>
+                  </div>
+                  <div class="wearer-info-box">
+                    <a href="/forum/member/${u.id}" data-link class="wearer-name">${u.username}</a>
+                    <span class="wearer-dec-title">${dec.name}</span>
+                    <span class="wearer-role-sub">${u.role_badge || u.role}</span>
+                  </div>
+                  <div class="wearer-actions-box">
+                    <button type="button" class="btn-wearer-edit" data-action="quick-edit-wearer" data-user-id="${u.id}" data-dec-url="${u.avatar_decoration}" title="Изменить украшение">✏️</button>
+                    <button type="button" class="btn-wearer-del" data-action="quick-del-wearer" data-user-id="${u.id}" data-username="${u.username}" title="Снять украшение">✕</button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        ` : `
+          <div class="empty-wearers-notice">
+            <p>Пока ни у кого из пользователей нет активных украшений. Выберите пользователя выше и выдайте первое!</p>
+          </div>
+        `}
+      </div>
+
+      <!-- Full 57 Decorations Gallery -->
+      <div class="decorations-gallery-section">
+        <div class="gallery-section-header">
+          <div>
+            <h3 style="color: #FFF; font-size: 16px; font-weight: 700;">Каталог всех 57 украшений аватарок</h3>
+            <p style="color: #8E95A5; font-size: 12.5px; margin-top: 2px;">Кликните на любое оформление, чтобы сразу примерить и выбрать его для выдачи</p>
+          </div>
+
+          <!-- Search in gallery -->
+          <div class="gallery-search-box">
+            <input type="text" id="decoration-gallery-search" class="modal-input" placeholder="Поиск украшения по названию..." style="padding: 7px 12px; font-size: 12px; width: 220px;" />
+          </div>
+        </div>
+
+        <!-- Category Filter Tabs -->
+        <div class="decoration-cat-pills">
+          ${categoriesList.map((cat, idx) => `
+            <button type="button" class="dec-cat-pill ${idx === 0 ? 'active' : ''}" data-cat-id="${cat.id}">
+              ${cat.name}
+            </button>
+          `).join('')}
+        </div>
+
+        <!-- Grid of 57 Cards -->
+        <div class="decorations-catalog-grid" id="decorations-catalog-grid">
+          ${decorations.map(d => `
+            <div class="dec-card" data-dec-id="${d.id}" data-dec-url="${d.url}" data-dec-name="${d.name}" data-category="${d.category}">
+              <div class="dec-card-preview-wrap">
+                <div class="avatar-wrap dec-preview-avatar-box">
+                  <img src="/assets/avatar_admin.jpg" class="avatar-base-img" alt="" />
+                  <img src="${d.url}" class="avatar-decoration" alt="${d.name}" loading="lazy" />
+                </div>
+              </div>
+              <div class="dec-card-details">
+                <h4 class="dec-card-title">${d.name}</h4>
+                <p class="dec-card-desc">${d.description || ''}</p>
+              </div>
+              <div class="dec-card-footer">
+                <button type="button" class="btn-select-dec" data-action="pick-dec-card" data-dec-id="${d.id}" data-dec-url="${d.url}" data-dec-name="${d.name}">
+                  Выбрать для выдачи
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
     </div>
   `;
 }

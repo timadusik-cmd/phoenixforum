@@ -29,4 +29,5 @@ phoenix_deploy.zip
 phoenix_frontend.zip
 public/uploads/*
 !public/uploads/.gitkeep
+CDN/
 
