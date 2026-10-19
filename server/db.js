@@ -334,6 +334,25 @@ export function initDatabase() {
       UNIQUE (prefix_id, category_id)
     );
 
+    -- 12. Game Servers Table (Monitoring & Direct Connect)
+    CREATE TABLE IF NOT EXISTS game_servers (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      ip TEXT NOT NULL,
+      port INTEGER NOT NULL DEFAULT 22005,
+      platform TEXT NOT NULL DEFAULT 'ragemp', -- 'ragemp', 'fivem', 'altv'
+      status TEXT NOT NULL DEFAULT 'online', -- 'online', 'maintenance', 'soon', 'offline'
+      online_players INTEGER NOT NULL DEFAULT 384,
+      max_players INTEGER NOT NULL DEFAULT 1000,
+      ping_ms INTEGER DEFAULT 24,
+      launcher_url TEXT DEFAULT 'https://phoenix-rp.online/launcher',
+      banner_img TEXT DEFAULT '/assets/hero_banner.jpg',
+      display_order INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     -- Indices for high performance
     CREATE INDEX IF NOT EXISTS idx_threads_category ON threads (category_id, is_pinned DESC, updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_posts_thread ON posts (thread_id, created_at ASC);
@@ -421,6 +440,50 @@ export function initDatabase() {
     }
   } catch (err) {
     console.error('[Database Migration] Error seeding prefixes:', err);
+  }
+
+  // Seed default Game Servers if none exist
+  try {
+    const countServers = db.prepare('SELECT COUNT(*) as count FROM game_servers').get().count;
+    if (countServers === 0) {
+      const insertServer = db.prepare(`
+        INSERT INTO game_servers (id, name, description, ip, port, platform, status, online_players, max_players, ping_ms, launcher_url, banner_img, display_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      insertServer.run(
+        'srv_phoenix_1',
+        'Phoenix RP #1 • Los Santos',
+        'Voice RolePlay • Экономика x1.5 • Государственные структуры и банды',
+        '193.58.121.34',
+        22005,
+        'ragemp',
+        'online',
+        384,
+        1000,
+        24,
+        'https://phoenix-rp.online/launcher',
+        '/assets/hero_banner.jpg',
+        1
+      );
+      insertServer.run(
+        'srv_phoenix_2',
+        'Phoenix RP #2 • San Fierro',
+        'Hard RolePlay • Клановые войны • Скоро открытие (Октябрь 2026)',
+        '193.58.121.34',
+        22006,
+        'ragemp',
+        'soon',
+        0,
+        1000,
+        0,
+        'https://phoenix-rp.online/launcher',
+        '/assets/hero_banner.jpg',
+        2
+      );
+      console.log('[Database] Seeded default Game Servers successfully.');
+    }
+  } catch (err) {
+    console.error('[Database Migration] Error seeding game servers:', err);
   }
 
   // Ensure default custom badges and admin badges are present

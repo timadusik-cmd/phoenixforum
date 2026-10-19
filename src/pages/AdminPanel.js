@@ -16,7 +16,8 @@ export function renderAdminPanel(data = {}) {
     customBadges = [], 
     auditLogs = [],
     decorationsData = null,
-    prefixes = []
+    prefixes = [],
+    servers = []
   } = data;
 
   const isIvanPetrov = state.user && (state.user.username === 'Ivan_Petrov' || state.user.id === 'u_ivan_petrov');
@@ -35,7 +36,7 @@ export function renderAdminPanel(data = {}) {
         <div class="admin-badge-icon">${ICONS.shield}</div>
         <div>
           <h1 class="admin-header-title">Панель Администрации и Модерации</h1>
-          <p class="admin-header-subtitle">Управление разделами, префиксы тем, модерация жалоб, права доступа, кастомные плашки и журнал действий.</p>
+          <p class="admin-header-subtitle">Управление разделами, префиксы тем, серверы GTA V, модерация жалоб, права доступа и кастомные плашки.</p>
         </div>
       </div>
 
@@ -49,6 +50,9 @@ export function renderAdminPanel(data = {}) {
           <a href="/admin?tab=categories" data-link class="filter-tab ${activeTab === 'categories' ? 'active' : ''}">Управление разделами</a>
           <a href="/admin?tab=prefixes" data-link class="filter-tab ${activeTab === 'prefixes' ? 'active' : ''}">
             🏷️ Префиксы тем ${prefixes.length > 0 ? `<span class="admin-tab-counter">${prefixes.length}</span>` : ''}
+          </a>
+          <a href="/admin?tab=servers" data-link class="filter-tab ${activeTab === 'servers' ? 'active' : ''}">
+            🖥️ Серверы ${servers.length > 0 ? `<span class="admin-tab-counter">${servers.length}</span>` : ''}
           </a>
           <a href="/admin?tab=users" data-link class="filter-tab ${activeTab === 'users' ? 'active' : ''}">Пользователи и роли</a>
           ${canManageCustomBadges ? `
@@ -96,6 +100,7 @@ export function renderAdminPanel(data = {}) {
             <a href="/admin?tab=reports" data-link class="btn-create-topic">Рассмотреть жалобы</a>
             <a href="/admin?tab=categories" data-link class="btn-secondary">Добавить раздел</a>
             <a href="/admin?tab=prefixes" data-link class="btn-secondary" style="border-color: #10B981; color: #FFF; background: rgba(16, 185, 129, 0.1);">🏷️ Префиксы тем (${prefixes.length})</a>
+            <a href="/admin?tab=servers" data-link class="btn-secondary" style="border-color: #38BDF8; color: #FFF; background: rgba(56, 189, 248, 0.1);">🖥️ Игровые серверы (${servers.length})</a>
             <a href="/admin?tab=users" data-link class="btn-secondary">Выдача ролей пользователям</a>
             ${canManageCustomBadges ? `
               <a href="/admin?tab=custom_badges" data-link class="btn-secondary" style="border-color: #FF2338; color: #FFF;">+ Создать кастомную плашку</a>
@@ -683,6 +688,9 @@ export function renderAdminPanel(data = {}) {
 
       <!-- Tab 8: Topic Prefixes -->
       ${activeTab === 'prefixes' ? renderPrefixesTab(prefixes, categories, forumCategories) : ''}
+
+      <!-- Tab 9: Game Servers -->
+      ${activeTab === 'servers' ? renderServersTab(servers) : ''}
     </div>
   `;
 }
@@ -1145,3 +1153,164 @@ function renderPrefixesTab(prefixes = [], categories = [], forumCategories = [])
     </div>
   `;
 }
+
+function renderServersTab(servers = []) {
+  return `
+    <div class="admin-section-card servers-admin-container">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 14px;">
+        <div>
+          <h2 style="color: #FFF; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+            <span>🖥️ Управление игровыми серверами Phoenix RP</span>
+          </h2>
+          <p style="color: #8E95A5; font-size: 12.5px; margin-top: 4px;">
+            Настройка прямого подключения, IP адресов, портов, статусов серверов, слотов, онлайна и пинга в реальном времени.
+          </p>
+        </div>
+        <button type="button" class="btn-create-topic" id="btn-admin-add-server" style="background: linear-gradient(135deg, #0091FF, #0066CC);">
+          ${ICONS.plus}
+          <span>Добавить сервер</span>
+        </button>
+      </div>
+
+      <!-- Servers List -->
+      ${servers.length === 0 ? `
+        <div class="empty-threads-card" style="padding: 30px; text-align: center;">
+          <p style="color: #8E95A5; font-size: 14px;">Список серверов пуст. Нажмите «Добавить сервер», чтобы подключить первый сервер.</p>
+        </div>
+      ` : `
+        <div class="admin-servers-list">
+          ${servers.map(s => {
+            const isOnline = s.status === 'online';
+            const isSoon = s.status === 'soon';
+            const isMaintenance = s.status === 'maintenance';
+            const statusLabel = isOnline ? 'ONLINE' : (isSoon ? 'СКОРО' : (isMaintenance ? 'ТЕХРАБОТЫ' : 'OFFLINE'));
+            const statusColor = isOnline ? '#10B981' : (isSoon ? '#F59E0B' : (isMaintenance ? '#EF4444' : '#6B7280'));
+            const fullIp = `${s.ip}:${s.port}`;
+
+            return `
+              <div class="admin-server-card" data-server-id="${s.id}">
+                <div>
+                  <div class="admin-server-meta-top">
+                    <span class="admin-server-name">${s.name}</span>
+                    <span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: color-mix(in srgb, ${statusColor} 15%, transparent); border: 1px solid ${statusColor}; color: ${statusColor};">
+                      ● ${statusLabel}
+                    </span>
+                    <span class="admin-server-ip-pill">${fullIp}</span>
+                    <span style="font-size: 11px; font-weight: 700; color: #8E95A5; text-transform: uppercase;">
+                      ${(s.platform || 'ragemp').toUpperCase() === 'RAGEMP' ? 'RAGE:MP' : s.platform.toUpperCase()}
+                    </span>
+                  </div>
+                  <p style="font-size: 12px; color: #8E95A5; margin: 4px 0 0 0;">
+                    ${s.description || 'Нет описания'}
+                  </p>
+                </div>
+
+                <div class="admin-server-stats-col">
+                  <div><strong>${s.online_players || 0}</strong> / ${s.max_players || 1000}</div>
+                  <div style="font-size: 11.5px; color: #8E95A5;">Пинг: <span style="color: #10B981; font-weight: 700;">${s.ping_ms || 24} ms</span></div>
+                </div>
+
+                <div class="admin-server-actions">
+                  <button type="button" class="btn-secondary btn-admin-edit-server" data-id="${s.id}" style="padding: 6px 12px; font-size: 12px;" title="Редактировать параметры сервера">
+                    ✏️ Изменить
+                  </button>
+                  <button type="button" class="btn-secondary btn-admin-del-server" data-id="${s.id}" data-name="${s.name}" style="padding: 6px 10px; font-size: 12px; border-color: rgba(239, 68, 68, 0.4); color: #EF4444;" title="Удалить сервер">
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `}
+
+      <!-- Create / Edit Server Modal -->
+      <div class="modal-backdrop" id="modal-server-manager" style="display: none; z-index: 10000;">
+        <div class="modal-card" style="max-width: 580px; width: 95%;">
+          <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 20px;">🖥️</span>
+              <h3 class="modal-title" id="srv-modal-title">Параметры игрового сервера</h3>
+            </div>
+            <button type="button" class="modal-close-btn" id="srv-modal-close">${ICONS.x}</button>
+          </div>
+
+          <form id="form-server-manager" class="modal-body" style="padding-top: 14px;">
+            <input type="hidden" id="srv-input-id" value="" />
+
+            <div class="modal-field" style="margin-bottom: 12px;">
+              <label>Название сервера</label>
+              <input type="text" class="modal-input" id="srv-input-name" placeholder="Например: Phoenix RP #1 • Los Santos" required maxlength="100" />
+            </div>
+
+            <div class="form-row-grid" style="margin-bottom: 12px;">
+              <div class="modal-field">
+                <label>IP Адрес</label>
+                <input type="text" class="modal-input" id="srv-input-ip" placeholder="193.58.121.34" required />
+              </div>
+              <div class="modal-field">
+                <label>Порт</label>
+                <input type="number" class="modal-input" id="srv-input-port" placeholder="22005" required min="1" max="65535" />
+              </div>
+            </div>
+
+            <div class="form-row-grid" style="margin-bottom: 12px;">
+              <div class="modal-field">
+                <label>Платформа</label>
+                <select class="modal-select" id="srv-select-platform">
+                  <option value="ragemp" selected>RAGE:MP (GTA V)</option>
+                  <option value="altv">alt:V (GTA V)</option>
+                  <option value="fivem">FiveM (GTA V)</option>
+                </select>
+              </div>
+
+              <div class="modal-field">
+                <label>Статус сервера</label>
+                <select class="modal-select" id="srv-select-status">
+                  <option value="online">🟢 Онлайн (Доступен для игры)</option>
+                  <option value="soon">🟡 Скоро открытие</option>
+                  <option value="maintenance">🛠 Технические работы</option>
+                  <option value="offline">⚪ Выключен / Офлайн</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row-grid" style="margin-bottom: 12px;">
+              <div class="modal-field">
+                <label>Онлайн игроков</label>
+                <input type="number" class="modal-input" id="srv-input-online" placeholder="384" value="0" min="0" />
+              </div>
+              <div class="modal-field">
+                <label>Макс. слотов (Max Players)</label>
+                <input type="number" class="modal-input" id="srv-input-slots" placeholder="1000" value="1000" min="1" />
+              </div>
+              <div class="modal-field">
+                <label>Пинг (мс)</label>
+                <input type="number" class="modal-input" id="srv-input-ping" placeholder="24" value="24" min="0" />
+              </div>
+            </div>
+
+            <div class="modal-field" style="margin-bottom: 12px;">
+              <label>Описание / Особенности сервера</label>
+              <input type="text" class="modal-input" id="srv-input-desc" placeholder="RAGE:MP • Voice RolePlay • Экономика x1.5 • Уникальный маппинг" maxlength="255" />
+            </div>
+
+            <div class="modal-field" style="margin-bottom: 16px;">
+              <label>Ссылка на скачивание лаунчера</label>
+              <input type="text" class="modal-input" id="srv-input-launcher" placeholder="https://phoenix-rp.online/launcher" />
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #1E2638; padding-top: 14px;">
+              <button type="button" class="btn-secondary" id="srv-btn-cancel">Отмена</button>
+              <button type="submit" class="btn-create-topic" id="srv-btn-save" style="background: linear-gradient(135deg, #0091FF, #0066CC);">
+                ${ICONS.check}
+                <span>Сохранить сервер</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+}
+

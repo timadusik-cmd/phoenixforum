@@ -226,7 +226,18 @@ export const api = {
     getPrefixes: () => request('/api/admin/prefixes'),
     createPrefix: (data) => request('/api/admin/prefixes', { method: 'POST', body: data }),
     updatePrefix: (id, data) => request(`/api/admin/prefixes/${encodeURIComponent(id)}`, { method: 'PUT', body: data }),
-    deletePrefix: (id) => request(`/api/admin/prefixes/${encodeURIComponent(id)}`, { method: 'DELETE' })
+    deletePrefix: (id) => request(`/api/admin/prefixes/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+    // Game Servers Management
+    getServers: () => request('/api/admin/servers'),
+    createServer: (data) => request('/api/admin/servers', { method: 'POST', body: data }),
+    updateServer: (id, data) => request(`/api/admin/servers/${encodeURIComponent(id)}`, { method: 'PUT', body: data }),
+    deleteServer: (id) => request(`/api/admin/servers/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  },
+
+  // Servers
+  servers: {
+    getAll: () => request('/api/servers')
   },
 
   // Uploads

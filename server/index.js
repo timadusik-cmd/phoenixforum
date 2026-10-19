@@ -18,6 +18,7 @@ import reportsRoutes from './routes/reports.js';
 import adminRoutes from './routes/admin.js';
 import uploadRoutes from './routes/upload.js';
 import messagesRoutes from './routes/messages.js';
+import serversRoutes from './routes/servers.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,6 +61,7 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/messages', messagesRoutes);
+app.use('/api/servers', serversRoutes);
 
 // Healthcheck
 app.get('/api/health', (req, res) => {

@@ -318,6 +318,7 @@ router.addRoute('/admin', async (params, query) => {
     let auditLogs = [];
     let decorationsData = null;
     let prefixes = [];
+    let servers = [];
 
     if (tab === 'reports') {
       const repData = await api.reports.getReports('pending');
@@ -357,16 +358,25 @@ router.addRoute('/admin', async (params, query) => {
         state.categories = catsRes.categories || [];
         state.forumCategories = catsRes.forumCategories || [];
       }
+    } else if (tab === 'servers') {
+      const srvRes = await api.admin.getServers().catch(() => ({ servers: [] }));
+      servers = srvRes.servers || [];
+      state.adminServers = servers;
     } else if (tab === 'logs') {
       const lData = await api.admin.getAuditLogs();
       auditLogs = lData.logs || [];
     }
 
-    // Always fetch prefixes count for overview badges if on overview
+    // Always fetch prefixes and servers count for overview badges if on overview
     if (tab === 'overview') {
-      const pfxRes = await api.admin.getPrefixes().catch(() => ({ prefixes: [] }));
+      const [pfxRes, srvRes] = await Promise.all([
+        api.admin.getPrefixes().catch(() => ({ prefixes: [] })),
+        api.admin.getServers().catch(() => ({ servers: [] }))
+      ]);
       prefixes = pfxRes.prefixes || [];
       state.currentAdminPrefixes = prefixes;
+      servers = srvRes.servers || [];
+      state.adminServers = servers;
     }
 
     renderAppShell(renderAdminPanel({
@@ -379,7 +389,8 @@ router.addRoute('/admin', async (params, query) => {
       customBadges,
       auditLogs,
       decorationsData,
-      prefixes
+      prefixes,
+      servers
     }));
   } catch (err) {
     renderAppShell(`<div class="empty-threads-card"><h3>Ошибка доступа</h3><p>${err.message}</p></div>`);
@@ -2073,6 +2084,143 @@ function attachGlobalEvents() {
       openModal('admin_user_awards', { userId, username, level, current_xp, reputation });
     };
   });
+
+  // -------------------------------------------------------------
+  // GAME SERVERS ADMIN MANAGEMENT
+  // -------------------------------------------------------------
+  const modalServerManager = document.getElementById('modal-server-manager');
+  const btnAdminAddServer = document.getElementById('btn-admin-add-server');
+  const btnCloseServerModal = document.getElementById('srv-modal-close');
+  const btnCancelServerModal = document.getElementById('srv-btn-cancel');
+  const formServerManager = document.getElementById('form-server-manager');
+
+  const srvInputId = document.getElementById('srv-input-id');
+  const srvInputName = document.getElementById('srv-input-name');
+  const srvInputIp = document.getElementById('srv-input-ip');
+  const srvInputPort = document.getElementById('srv-input-port');
+  const srvSelectPlatform = document.getElementById('srv-select-platform');
+  const srvSelectStatus = document.getElementById('srv-select-status');
+  const srvInputOnline = document.getElementById('srv-input-online');
+  const srvInputSlots = document.getElementById('srv-input-slots');
+  const srvInputPing = document.getElementById('srv-input-ping');
+  const srvInputDesc = document.getElementById('srv-input-desc');
+  const srvInputLauncher = document.getElementById('srv-input-launcher');
+  const srvModalTitle = document.getElementById('srv-modal-title');
+
+  function openServerModal(server = null) {
+    if (!modalServerManager) return;
+    if (server) {
+      if (srvModalTitle) srvModalTitle.textContent = 'Редактирование сервера';
+      if (srvInputId) srvInputId.value = server.id;
+      if (srvInputName) srvInputName.value = server.name || '';
+      if (srvInputIp) srvInputIp.value = server.ip || '193.58.121.34';
+      if (srvInputPort) srvInputPort.value = server.port || 22005;
+      if (srvSelectPlatform) srvSelectPlatform.value = server.platform || 'ragemp';
+      if (srvSelectStatus) srvSelectStatus.value = server.status || 'online';
+      if (srvInputOnline) srvInputOnline.value = server.online_players || 0;
+      if (srvInputSlots) srvInputSlots.value = server.max_players || 1000;
+      if (srvInputPing) srvInputPing.value = server.ping_ms || 24;
+      if (srvInputDesc) srvInputDesc.value = server.description || '';
+      if (srvInputLauncher) srvInputLauncher.value = server.launcher_url || 'https://phoenix-rp.online/launcher';
+    } else {
+      if (srvModalTitle) srvModalTitle.textContent = 'Добавление нового сервера';
+      if (srvInputId) srvInputId.value = '';
+      if (srvInputName) srvInputName.value = '';
+      if (srvInputIp) srvInputIp.value = '193.58.121.34';
+      if (srvInputPort) srvInputPort.value = '22005';
+      if (srvSelectPlatform) srvSelectPlatform.value = 'ragemp';
+      if (srvSelectStatus) srvSelectStatus.value = 'online';
+      if (srvInputOnline) srvInputOnline.value = '0';
+      if (srvInputSlots) srvInputSlots.value = '1000';
+      if (srvInputPing) srvInputPing.value = '24';
+      if (srvInputDesc) srvInputDesc.value = '';
+      if (srvInputLauncher) srvInputLauncher.value = 'https://phoenix-rp.online/launcher';
+    }
+    modalServerManager.style.display = 'flex';
+  }
+
+  function closeServerModal() {
+    if (modalServerManager) modalServerManager.style.display = 'none';
+  }
+
+  if (btnAdminAddServer) {
+    btnAdminAddServer.onclick = () => openServerModal(null);
+  }
+  if (btnCloseServerModal) btnCloseServerModal.onclick = closeServerModal;
+  if (btnCancelServerModal) btnCancelServerModal.onclick = closeServerModal;
+
+  document.querySelectorAll('.btn-admin-edit-server').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.getAttribute('data-id');
+      const server = (state.adminServers || state.gameServers || []).find(s => s.id === id);
+      if (server) {
+        openServerModal(server);
+      }
+    };
+  });
+
+  document.querySelectorAll('.btn-admin-del-server').forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.getAttribute('data-id');
+      const name = btn.getAttribute('data-name') || 'этот сервер';
+      if (!confirm(`Вы действительно хотите удалить игровой сервер «${name}» из мониторинга?`)) return;
+
+      try {
+        await api.admin.deleteServer(id);
+        showToast('Сервер удалён');
+        playSound('success');
+        router.resolve();
+      } catch (err) {
+        alert(err.message || 'Ошибка удаления сервера');
+      }
+    };
+  });
+
+  if (formServerManager) {
+    formServerManager.onsubmit = async (e) => {
+      e.preventDefault();
+      const serverId = srvInputId?.value;
+      const payload = {
+        name: srvInputName?.value.trim(),
+        ip: srvInputIp?.value.trim(),
+        port: parseInt(srvInputPort?.value) || 22005,
+        platform: srvSelectPlatform?.value || 'ragemp',
+        status: srvSelectStatus?.value || 'online',
+        online_players: parseInt(srvInputOnline?.value) || 0,
+        max_players: parseInt(srvInputSlots?.value) || 1000,
+        ping_ms: parseInt(srvInputPing?.value) || 24,
+        description: srvInputDesc?.value.trim(),
+        launcher_url: srvInputLauncher?.value.trim()
+      };
+
+      if (!payload.name) {
+        alert('Укажите название сервера');
+        return;
+      }
+      if (!payload.ip) {
+        alert('Укажите IP адрес');
+        return;
+      }
+
+      const saveBtn = document.getElementById('srv-btn-save');
+      try {
+        if (saveBtn) saveBtn.disabled = true;
+        if (serverId) {
+          await api.admin.updateServer(serverId, payload);
+          showToast('Параметры сервера обновлены');
+        } else {
+          await api.admin.createServer(payload);
+          showToast('Новый сервер успешно добавлен');
+        }
+        playSound('success');
+        closeServerModal();
+        router.resolve();
+      } catch (err) {
+        alert(err.message || 'Ошибка сохранения сервера');
+        if (saveBtn) saveBtn.disabled = false;
+      }
+    };
+  }
 }
 
 // Sidebar Accordion Subsections Toggle
@@ -2127,16 +2275,20 @@ async function initApp() {
 
   // 2. Fetch Initial Categories, Recent Threads & Online Stats
   try {
-    const [catsRes, recentsRes, onlineRes] = await Promise.all([
+    const [catsRes, recentsRes, onlineRes, srvRes] = await Promise.all([
       api.categories.getAll().catch(() => ({ categories: [] })),
       api.threads.getRecent().catch(() => ({ threads: [] })),
-      api.users.getOnlineStats().catch(() => null)
+      api.users.getOnlineStats().catch(() => null),
+      api.servers.getAll().catch(() => ({ servers: [] }))
     ]);
     state.categories = catsRes.categories || [];
     state.forumCategories = catsRes.forumCategories || [];
     state.recentThreads = recentsRes.threads || [];
     if (onlineRes) {
       state.onlineStats = onlineRes;
+    }
+    if (srvRes && srvRes.servers) {
+      state.gameServers = srvRes.servers;
     }
   } catch (err) {
     console.error('Failed to load initial forum data:', err);

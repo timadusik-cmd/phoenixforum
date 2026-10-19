@@ -26,6 +26,15 @@ export async function openModal(name, context = null) {
     } catch {
       state.modalContext = { ...context, awards: [] };
     }
+  } else if (name === 'servers' || name === 'serverConnect') {
+    try {
+      const res = await api.servers.getAll();
+      if (res && res.servers) {
+        state.gameServers = res.servers;
+      }
+    } catch {
+      // Keep existing state.gameServers if network fails
+    }
   }
 
   renderModal();
@@ -179,110 +188,182 @@ export function renderModal() {
     `;
   }
 
-  // 3. Quick Connect Modal
-  else if (state.activeModal === 'serverConnect') {
-    container.innerHTML = `
-      <div class="modal-backdrop" id="modal-backdrop">
-        <div class="modal-card" style="max-width: 460px;">
-          <div class="modal-header">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <div style="width: 28px; height: 28px;">
-                <img src="/assets/phoenix_logo.png" alt="Phoenix" style="width: 100%; height: 100%; object-fit: contain;" />
-              </div>
-              <h3 class="modal-title">Подключение к Phoenix RP</h3>
-            </div>
-            <button class="modal-close-btn" id="modal-close-btn">${ICONS.x}</button>
-          </div>
-          <div class="modal-body" style="text-align: center;">
-            <p style="font-size: 13px; color: #929BAA; margin-bottom: 16px;">
-              Сервер работает на базе платформы RAGE:MP (GTA V). Для прямого подключения скопируйте адрес ниже:
-            </p>
-            <div style="background: #07090D; border: 1px solid #202631; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 15px; color: #FF2338; font-weight: 700; margin-bottom: 16px;">
-              s1.phoenix-rp.ru:22005
-            </div>
-            <div style="display: flex; gap: 10px;">
-              <button class="btn-secondary" id="btn-copy-ip" style="flex: 1; justify-content: center;">
-                ${ICONS.copy}
-                <span>Скопировать IP</span>
-              </button>
-              <a href="https://phoenix-rp.ru/launcher" target="_blank" class="btn-create-topic" style="flex: 1; justify-content: center; text-decoration: none;">
-                <span>Скачать лаунчер</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
+  // 3 & 4. Game Servers Monitoring & Connection Console (Redesigned)
+  else if (state.activeModal === 'servers' || state.activeModal === 'serverConnect') {
+    const servers = (state.gameServers && state.gameServers.length > 0)
+      ? state.gameServers
+      : [
+          {
+            id: 'srv_phoenix_1',
+            name: 'Phoenix RP #1 • Los Santos',
+            description: 'RAGE:MP • Voice RolePlay • Экономика x1.5 • Уникальный маппинг',
+            ip: '193.58.121.34',
+            port: 22005,
+            platform: 'ragemp',
+            status: 'online',
+            online_players: 384,
+            max_players: 1000,
+            ping_ms: 24,
+            launcher_url: 'https://phoenix-rp.online/launcher',
+            percent: 38,
+            connect_url: 'ragemp://193.58.121.34:22005'
+          },
+          {
+            id: 'srv_phoenix_2',
+            name: 'Phoenix RP #2 • San Fierro',
+            description: 'Hard RP • Клановые войны • 1000 слотов',
+            ip: '193.58.121.34',
+            port: 22006,
+            platform: 'ragemp',
+            status: 'soon',
+            online_players: 0,
+            max_players: 1000,
+            ping_ms: 0,
+            launcher_url: 'https://phoenix-rp.online/launcher',
+            percent: 0,
+            connect_url: 'ragemp://193.58.121.34:22006'
+          }
+        ];
 
-  // 4. Servers Monitoring Modal
-  else if (state.activeModal === 'servers') {
+    const totalOnline = servers.reduce((acc, s) => acc + (s.status === 'online' ? (parseInt(s.online_players) || 0) : 0), 0);
+    const totalSlots = servers.reduce((acc, s) => acc + (parseInt(s.max_players) || 0), 0);
+
     container.innerHTML = `
       <div class="modal-backdrop" id="modal-backdrop">
-        <div class="modal-card" style="max-width: 580px;">
-          <div class="modal-header">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <div style="color: #FF2338;">${ICONS.servers}</div>
+        <div class="srv-monitor-modal-card">
+          <!-- Header -->
+          <div class="srv-modal-header">
+            <div class="srv-modal-brand">
+              <div class="srv-brand-emblem-wrap">
+                <img src="/assets/phoenix_logo.png" class="srv-brand-emblem" alt="Phoenix RP" />
+              </div>
               <div>
-                <h3 class="modal-title">Игровые серверы Phoenix RP</h3>
-                <p style="font-size: 11.5px; color: #8A96A6; margin: 0;">Мониторинг онлайна и прямое подключение</p>
+                <div class="srv-modal-suptitle">Игровой комплекс • GTA 5 RP</div>
+                <h3 class="srv-modal-title">Игровые серверы Phoenix RP</h3>
+                <p class="srv-modal-subtitle">Мониторинг онлайна в реальном времени и прямое подключение</p>
               </div>
             </div>
-            <button class="modal-close-btn" id="modal-close-btn">${ICONS.x}</button>
+            <div class="srv-modal-header-right">
+              <div class="srv-total-online-badge">
+                <span class="srv-live-dot"></span>
+                <span>Онлайн: <strong>${totalOnline}</strong> / ${totalSlots}</span>
+              </div>
+              <button class="modal-close-btn" id="modal-close-btn">${ICONS.x}</button>
+            </div>
           </div>
 
-          <div class="modal-body">
-            <!-- Server 1: Active -->
-            <div class="server-monitor-card active-server">
-              <div class="server-card-top">
-                <div>
-                  <div class="server-title-row">
-                    <span class="server-name">Phoenix RP #1 • Los Santos</span>
-                    <span class="server-badge-online">● ONLINE</span>
+          <!-- Body -->
+          <div class="srv-modal-body">
+            ${servers.map(s => {
+              const maxP = parseInt(s.max_players) || 1000;
+              const curP = parseInt(s.online_players) || 0;
+              const pct = Math.min(100, Math.round((curP / maxP) * 100));
+              const isOnline = s.status === 'online';
+              const isSoon = s.status === 'soon';
+              const isMaintenance = s.status === 'maintenance';
+              const fullIp = `${s.ip}:${s.port}`;
+              const connectUrl = s.connect_url || `ragemp://${fullIp}`;
+
+              return `
+                <div class="srv-card ${isOnline ? 'online-server' : (isSoon ? 'soon-server' : 'offline-server')}">
+                  <!-- Top Row -->
+                  <div class="srv-card-top-row">
+                    <div class="srv-name-group">
+                      <span class="srv-name-text">${s.name}</span>
+                      ${isOnline ? `
+                        <span class="srv-status-pill online"><span class="srv-live-dot"></span> ONLINE</span>
+                      ` : (isSoon ? `
+                        <span class="srv-status-pill soon">🟡 Скоро открытие</span>
+                      ` : (isMaintenance ? `
+                        <span class="srv-status-pill maintenance">🛠 Техработы</span>
+                      ` : `
+                        <span class="srv-status-pill" style="background: rgba(255,255,255,0.08); color: #8E95A5;">⚪ OFFLINE</span>
+                      `))}
+                      <span class="srv-platform-pill">${(s.platform || 'ragemp').toUpperCase() === 'RAGEMP' ? 'RAGE:MP' : (s.platform || 'RAGE:MP').toUpperCase()}</span>
+                    </div>
+
+                    ${isOnline ? `
+                      <div class="srv-ping-badge" title="Задержка сети (Ping)">
+                        ${ICONS.signal || ''}
+                        <span>${s.ping_ms || 24} ms</span>
+                      </div>
+                    ` : (isSoon ? `
+                      <span style="font-size: 11.5px; color: #F59E0B; font-weight: 700; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.25); padding: 3px 8px; border-radius: 5px;">
+                        Октябрь 2026
+                      </span>
+                    ` : '')}
                   </div>
-                  <div class="server-meta-sub">RAGE:MP • Voice RolePlay • Экономика x1.5</div>
-                </div>
-                <div class="server-ping-wrap">
-                  <span class="server-ping-val">24 ms</span>
-                  <span class="server-ping-lbl">Пинг</span>
-                </div>
-              </div>
 
-              <!-- Online Progress -->
-              <div class="server-online-bar-wrap">
-                <div class="server-online-labels">
-                  <span>Онлайн игроков: <strong>842</strong> / 1000</span>
-                  <span style="color: #FF2338; font-weight: 700;">84%</span>
-                </div>
-                <div class="server-progress-track">
-                  <div class="server-progress-fill" style="width: 84%;"></div>
-                </div>
-              </div>
+                  <!-- Description -->
+                  <p class="srv-desc-text">${s.description || 'GTA 5 RolePlay сервер нового поколения с уникальными механиками'}</p>
 
-              <div class="server-card-actions">
-                <div class="server-ip-code">s1.phoenix-rp.ru:22005</div>
-                <button class="btn-secondary btn-copy-server-ip" data-ip="s1.phoenix-rp.ru:22005">
-                  ${ICONS.copy} <span>Скопировать</span>
-                </button>
-                <a href="ragemp://s1.phoenix-rp.ru:22005" class="btn-create-topic" style="padding: 6px 14px; text-decoration: none;">
-                  <span>Играть</span>
-                </a>
+                  <!-- Progress -->
+                  <div class="srv-progress-container">
+                    <div class="srv-progress-meta">
+                      <span>Игроков онлайн: <strong>${curP}</strong> / ${maxP}</span>
+                      <span class="srv-percent-text" style="${isSoon ? 'color: #F59E0B;' : ''}">${pct}%</span>
+                    </div>
+                    <div class="srv-progress-track">
+                      <div class="srv-progress-fill" style="width: ${pct}%;"></div>
+                    </div>
+                  </div>
+
+                  <!-- Actions Bar -->
+                  <div class="srv-actions-grid">
+                    <div class="srv-ip-box" title="Нажмите 'Копировать' чтобы скопировать IP адрес">
+                      <span class="srv-ip-text">${fullIp}</span>
+                      <button type="button" class="btn-srv-copy" data-ip="${fullIp}">
+                        ${ICONS.copy} <span>Копировать</span>
+                      </button>
+                    </div>
+
+                    ${isOnline ? `
+                      <a href="${connectUrl}" class="btn-srv-play">
+                        ${ICONS.play || ''}
+                        <span>ИГРАТЬ СЕЙЧАС</span>
+                      </a>
+                    ` : (isSoon ? `
+                      <button type="button" class="btn-srv-play" style="opacity: 0.6; cursor: not-allowed; background: #232A3B; box-shadow: none; border-color: #2D374D;" disabled>
+                        <span>СКОРО В СЕТИ</span>
+                      </button>
+                    ` : `
+                      <button type="button" class="btn-srv-play" style="opacity: 0.5; cursor: not-allowed; background: #232A3B; box-shadow: none;" disabled>
+                        <span>НЕДОСТУПЕН</span>
+                      </button>
+                    `)}
+
+                    <a href="${s.launcher_url || 'https://phoenix-rp.online/launcher'}" target="_blank" class="btn-srv-launcher" title="Скачать лаунчер Phoenix RP">
+                      ${ICONS.download || ''}
+                      <span>Лаунчер</span>
+                    </a>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Bottom Guide Bar -->
+          <div class="srv-connect-guide-bar">
+            <div class="srv-guide-steps">
+              <div class="srv-guide-step">
+                <span class="srv-step-num">1</span>
+                <span>Лицензия GTA V</span>
+              </div>
+              <span class="srv-step-arrow">→</span>
+              <div class="srv-guide-step">
+                <span class="srv-step-num">2</span>
+                <span>RAGE:MP клиент</span>
+              </div>
+              <span class="srv-step-arrow">→</span>
+              <div class="srv-guide-step">
+                <span class="srv-step-num">3</span>
+                <span>Нажмите «Играть сейчас»</span>
               </div>
             </div>
-
-            <!-- Server 2: Coming soon -->
-            <div class="server-monitor-card soon-server" style="margin-top: 14px; opacity: 0.85;">
-              <div class="server-card-top">
-                <div>
-                  <div class="server-title-row">
-                    <span class="server-name">Phoenix RP #2 • San Fierro</span>
-                    <span class="server-badge-soon">🟡 Скоро открытие</span>
-                  </div>
-                  <div class="server-meta-sub">Hard RP • Клановые войны • 1000 слотов</div>
-                </div>
-                <span style="font-size: 12px; color: #8A96A6; font-weight: 600;">Октябрь 2026</span>
-              </div>
-            </div>
+            <a href="https://rage.mp" target="_blank" rel="noopener noreferrer" class="srv-guide-link">
+              <span>Официальный сайт RAGE:MP</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            </a>
           </div>
         </div>
       </div>
@@ -1121,13 +1202,16 @@ function attachModalEvents() {
   }
 
   // Copy IP Buttons
-  document.querySelectorAll('#btn-copy-ip, .btn-copy-server-ip').forEach(btn => {
+  document.querySelectorAll('#btn-copy-ip, .btn-copy-server-ip, .btn-srv-copy').forEach(btn => {
     btn.onclick = () => {
-      const ip = btn.getAttribute('data-ip') || 's1.phoenix-rp.ru:22005';
+      const ip = btn.getAttribute('data-ip') || '193.58.121.34:22005';
       navigator.clipboard.writeText(ip);
       const prevHtml = btn.innerHTML;
+      btn.classList.add('copied');
       btn.innerHTML = `${ICONS.check} <span>Скопировано!</span>`;
+      try { playSound('click'); } catch {}
       setTimeout(() => {
+        btn.classList.remove('copied');
         btn.innerHTML = prevHtml;
       }, 2000);
     };

@@ -1196,4 +1196,169 @@ router.delete('/prefixes/:id', requireRole('admin'), (req, res) => {
   }
 });
 
+// ==============================================================
+// 10. GAME SERVERS MANAGEMENT (Мониторинг & Серверы)
+// ==============================================================
+
+// GET all game servers (admin)
+router.get('/servers', requireRole('moderator'), (req, res) => {
+  try {
+    const servers = db.prepare('SELECT * FROM game_servers ORDER BY display_order ASC, created_at ASC').all();
+    res.json({ servers });
+  } catch (err) {
+    console.error('Error fetching admin servers:', err);
+    res.status(500).json({ error: 'Ошибка загрузки серверов' });
+  }
+});
+
+// POST create game server
+router.post('/servers', requireRole('admin'), (req, res) => {
+  try {
+    const {
+      name,
+      description,
+      ip,
+      port,
+      platform = 'ragemp',
+      status = 'online',
+      online_players = 0,
+      max_players = 1000,
+      ping_ms = 24,
+      launcher_url = 'https://phoenix-rp.online/launcher',
+      banner_img = '/assets/hero_banner.jpg',
+      display_order = 1
+    } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Укажите название сервера.' });
+    }
+    if (!ip || !ip.trim()) {
+      return res.status(400).json({ error: 'Укажите IP-адрес сервера.' });
+    }
+
+    const id = 'srv_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+
+    db.prepare(`
+      INSERT INTO game_servers (
+        id, name, description, ip, port, platform, status, online_players, max_players, ping_ms, launcher_url, banner_img, display_order, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `).run(
+      id,
+      name.trim(),
+      (description || '').trim(),
+      ip.trim(),
+      parseInt(port) || 22005,
+      platform,
+      status,
+      parseInt(online_players) || 0,
+      parseInt(max_players) || 1000,
+      parseInt(ping_ms) || 24,
+      launcher_url.trim(),
+      banner_img.trim(),
+      parseInt(display_order) || 1
+    );
+
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'create_server', 'server', ?, ?, ?)
+    `).run('log_' + Date.now(), req.user.id, id, `Создание сервера: ${name} (${ip}:${port})`, req.ip || '');
+
+    res.json({ message: 'Сервер успешно добавлен в мониторинг!', serverId: id });
+  } catch (err) {
+    console.error('Error creating server:', err);
+    res.status(500).json({ error: 'Ошибка при создании сервера: ' + (err.message || 'неизвестная ошибка') });
+  }
+});
+
+// PUT update game server
+router.put('/servers/:id', requireRole('admin'), (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM game_servers WHERE id = ?').get(id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Сервер не найден.' });
+    }
+
+    const {
+      name,
+      description,
+      ip,
+      port,
+      platform,
+      status,
+      online_players,
+      max_players,
+      ping_ms,
+      launcher_url,
+      banner_img,
+      display_order
+    } = req.body;
+
+    db.prepare(`
+      UPDATE game_servers SET
+        name = ?,
+        description = ?,
+        ip = ?,
+        port = ?,
+        platform = ?,
+        status = ?,
+        online_players = ?,
+        max_players = ?,
+        ping_ms = ?,
+        launcher_url = ?,
+        banner_img = ?,
+        display_order = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      name !== undefined ? String(name).trim() : existing.name,
+      description !== undefined ? String(description).trim() : existing.description,
+      ip !== undefined ? String(ip).trim() : existing.ip,
+      port !== undefined ? parseInt(port) : existing.port,
+      platform !== undefined ? platform : existing.platform,
+      status !== undefined ? status : existing.status,
+      online_players !== undefined ? parseInt(online_players) : existing.online_players,
+      max_players !== undefined ? parseInt(max_players) : existing.max_players,
+      ping_ms !== undefined ? parseInt(ping_ms) : existing.ping_ms,
+      launcher_url !== undefined ? String(launcher_url).trim() : existing.launcher_url,
+      banner_img !== undefined ? String(banner_img).trim() : existing.banner_img,
+      display_order !== undefined ? parseInt(display_order) : existing.display_order,
+      id
+    );
+
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'update_server', 'server', ?, ?, ?)
+    `).run('log_' + Date.now(), req.user.id, id, `Обновление параметров сервера: ${name || existing.name} (Статус: ${status || existing.status})`, req.ip || '');
+
+    res.json({ message: 'Настройки сервера успешно сохранены!' });
+  } catch (err) {
+    console.error('Error updating server:', err);
+    res.status(500).json({ error: 'Ошибка обновления сервера: ' + (err.message || 'неизвестная ошибка') });
+  }
+});
+
+// DELETE game server
+router.delete('/servers/:id', requireRole('admin'), (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM game_servers WHERE id = ?').get(id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Сервер не найден.' });
+    }
+
+    db.prepare('DELETE FROM game_servers WHERE id = ?').run(id);
+
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'delete_server', 'server', ?, ?, ?)
+    `).run('log_' + Date.now(), req.user.id, id, `Удаление сервера из мониторинга: ${existing.name}`, req.ip || '');
+
+    res.json({ message: `Сервер «${existing.name}» удалён.` });
+  } catch (err) {
+    console.error('Error deleting server:', err);
+    res.status(500).json({ error: 'Ошибка при удалении сервера' });
+  }
+});
+
 export default router;

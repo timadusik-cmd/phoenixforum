@@ -7,6 +7,7 @@ export const state = {
   recentThreads: [],
   unreadNotifications: 0,
   unreadMessages: 0,
+  gameServers: [],
   activeCategorySlug: null,
   activeModal: null, // null | 'auth' | 'profile' | 'report' | 'serverConnect' | 'servers' | 'shop' | 'editThread' | 'startConversation'
   modalContext: null, // Any contextual data passed to active modal
