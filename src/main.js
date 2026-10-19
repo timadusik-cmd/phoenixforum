@@ -1633,6 +1633,7 @@ function attachGlobalEvents() {
   const btnResetNickStyle = document.getElementById('btn-reset-nick-style');
 
   let currentSelectedStyle = 'default';
+  let currentSelectedEffect = '';
 
   function updateLiveNickPreview() {
     if (!nickUserSelect) return;
@@ -1660,13 +1661,28 @@ function attachGlobalEvents() {
     if (n1) n1.innerHTML = styledHtml;
     if (n2) n2.innerHTML = styledHtml;
     if (n3) n3.innerHTML = styledHtml;
+
+    const effectWrap = document.getElementById('nick-preview-effect-wrap');
+    const effectImg = document.getElementById('nick-preview-effect-img');
+    if (effectWrap && effectImg) {
+      if (currentSelectedEffect) {
+        effectImg.src = currentSelectedEffect;
+        effectWrap.style.display = 'block';
+      } else {
+        effectWrap.style.display = 'none';
+      }
+    }
   }
 
   if (nickUserSelect && nickUsernameInput) {
     const initialOpt = nickUserSelect.selectedOptions?.[0];
     if (initialOpt) {
       currentSelectedStyle = initialOpt.getAttribute('data-current-style') || 'default';
+      currentSelectedEffect = initialOpt.getAttribute('data-current-effect') || '';
       nickUsernameInput.value = initialOpt.getAttribute('data-username') || '';
+      document.querySelectorAll('.profile-effect-card').forEach(c => {
+        c.classList.toggle('selected', (c.getAttribute('data-effect-url') || '') === currentSelectedEffect);
+      });
     }
 
     nickUserSelect.onchange = () => {
@@ -1674,8 +1690,12 @@ function attachGlobalEvents() {
       if (opt) {
         nickUsernameInput.value = opt.getAttribute('data-username') || '';
         currentSelectedStyle = opt.getAttribute('data-current-style') || 'default';
+        currentSelectedEffect = opt.getAttribute('data-current-effect') || '';
         document.querySelectorAll('.nick-style-card').forEach(c => {
           c.classList.toggle('selected', c.getAttribute('data-style-key') === currentSelectedStyle);
+        });
+        document.querySelectorAll('.profile-effect-card').forEach(c => {
+          c.classList.toggle('selected', (c.getAttribute('data-effect-url') || '') === currentSelectedEffect);
         });
         updateLiveNickPreview();
       }
@@ -1690,6 +1710,17 @@ function attachGlobalEvents() {
         document.querySelectorAll('.nick-style-card').forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
         currentSelectedStyle = card.getAttribute('data-style-key') || 'default';
+        updateLiveNickPreview();
+      };
+    });
+
+    document.querySelectorAll('.profile-effect-card').forEach(card => {
+      card.onclick = () => {
+        document.querySelectorAll('.profile-effect-card').forEach(c => {
+          c.classList.remove('selected');
+        });
+        card.classList.add('selected');
+        currentSelectedEffect = card.getAttribute('data-effect-url') || '';
         updateLiveNickPreview();
       };
     });
@@ -1715,15 +1746,17 @@ function attachGlobalEvents() {
         try {
           const res = await api.admin.updateUserNickname(userId, {
             username: newNick,
-            name_style: currentSelectedStyle
+            name_style: currentSelectedStyle,
+            profile_effect: currentSelectedEffect
           });
-          showToast(res.message || 'Никнейм и стиль успешно сохранены!');
+          showToast(res.message || 'Никнейм, стиль и эффект успешно сохранены!');
           playSound('success');
 
           if (state.user && state.user.id === userId) {
             state.user.username = newNick;
             state.user.character_name = newNick;
             state.user.name_style = currentSelectedStyle;
+            state.user.profile_effect = currentSelectedEffect;
             authStorage.saveUser(state.user);
             notifyStateChange();
           }

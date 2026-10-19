@@ -28,7 +28,7 @@ export function optionalAuth(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     const user = db.prepare(`
-      SELECT id, email, username, character_name, avatar, avatar_decoration, name_style, role, role_color, role_badge, status, 
+      SELECT id, email, username, character_name, avatar, avatar_decoration, profile_effect, name_style, role, role_color, role_badge, status, 
              level, current_xp, reputation, fraction, server, bio, signature, is_banned, ban_reason, created_at
       FROM users WHERE id = ?
     `).get(decoded.id);

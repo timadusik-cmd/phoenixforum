@@ -92,6 +92,7 @@ router.post('/', requireAuth, (req, res) => {
       SELECT p.*,
              u.id as author_id, u.username as author_name, u.avatar as author_avatar,
              u.avatar_decoration as author_avatar_decoration,
+             u.profile_effect as author_profile_effect,
              u.name_style as author_name_style,
              u.role as author_role, u.role_badge as author_badge, u.role_color as author_color,
              u.level as author_level, u.reputation as author_reputation, u.fraction as author_fraction,

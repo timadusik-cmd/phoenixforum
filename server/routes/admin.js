@@ -1373,14 +1373,14 @@ router.delete('/servers/:id', requireRole('admin'), (req, res) => {
 router.get('/nicknames', requireFounder, (req, res) => {
   try {
     const styledUsers = db.prepare(`
-      SELECT id, username, character_name, avatar, avatar_decoration, name_style, role, role_badge, role_color, level
+      SELECT id, username, character_name, avatar, avatar_decoration, profile_effect, name_style, role, role_badge, role_color, level
       FROM users
-      WHERE name_style IS NOT NULL AND name_style != '' AND name_style != 'default'
+      WHERE (name_style IS NOT NULL AND name_style != '' AND name_style != 'default') OR (profile_effect IS NOT NULL AND profile_effect != '')
       ORDER BY username ASC
     `).all();
 
     const allUsers = db.prepare(`
-      SELECT id, username, character_name, avatar, avatar_decoration, name_style, role, role_badge, role_color, level
+      SELECT id, username, character_name, avatar, avatar_decoration, profile_effect, name_style, role, role_badge, role_color, level
       FROM users
       ORDER BY 
         CASE role 
@@ -1399,11 +1399,11 @@ router.get('/nicknames', requireFounder, (req, res) => {
   }
 });
 
-// PUT update user's nickname and/or style
+// PUT update user's nickname and/or style and/or profile effect
 router.put('/users/:id/nickname', requireFounder, (req, res) => {
   try {
-    const { username, name_style } = req.body;
-    const targetUser = db.prepare('SELECT id, username, character_name, name_style FROM users WHERE id = ?').get(req.params.id);
+    const { username, name_style, profile_effect } = req.body;
+    const targetUser = db.prepare('SELECT id, username, character_name, name_style, profile_effect FROM users WHERE id = ?').get(req.params.id);
     if (!targetUser) {
       return res.status(404).json({ error: 'Пользователь не найден.' });
     }
@@ -1428,14 +1428,16 @@ router.put('/users/:id/nickname', requireFounder, (req, res) => {
     }
 
     const newStyle = (name_style !== undefined && name_style !== null) ? String(name_style).trim() : (targetUser.name_style || 'default');
+    const newEffect = (profile_effect !== undefined) ? (profile_effect ? String(profile_effect).trim() : null) : (targetUser.profile_effect || null);
 
     db.prepare(`
       UPDATE users
       SET username = ?,
           name_style = ?,
+          profile_effect = ?,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(newUsername, newStyle, targetUser.id);
+    `).run(newUsername, newStyle, newEffect, targetUser.id);
 
     // Audit log
     try {

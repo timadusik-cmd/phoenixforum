@@ -206,9 +206,14 @@ export function renderThreadView(data) {
           const canDeletePost = isPostAuthor || isMod;
 
           return `
-            <div class="thread-post-card ${post.is_solution ? 'solution-post' : ''}" id="post-${post.id}" data-post-id="${post.id}">
+            <div class="thread-post-card ${post.is_solution ? 'solution-post' : ''} ${post.author_profile_effect ? 'has-profile-effect-card' : ''}" id="post-${post.id}" data-post-id="${post.id}">
               <!-- Post Author Sidebar -->
-              <div class="post-author-sidebar">
+              <div class="post-author-sidebar ${post.author_profile_effect ? 'has-profile-effect' : ''}">
+                ${post.author_profile_effect ? `
+                  <div class="author-profile-effect-wrap" aria-hidden="true">
+                    <img src="${post.author_profile_effect}" class="author-profile-effect-img" alt="" />
+                  </div>
+                ` : ''}
                 <a href="/forum/member/${post.author_id}" data-link class="post-avatar-wrap">
                   <img src="${post.author_avatar || '/assets/avatar_ivan.jpg'}" alt="${post.author_name}" class="post-author-avatar" />
                   ${post.author_avatar_decoration ? `<img src="${post.author_avatar_decoration}" class="avatar-decoration post-decoration" alt="" />` : ''}

@@ -31,7 +31,12 @@ export function renderMemberProfile(data) {
       </div>
 
       <!-- Profile Hero Card -->
-      <div class="profile-page-hero">
+      <div class="profile-page-hero ${user.profile_effect ? 'has-profile-effect' : ''}">
+        ${user.profile_effect ? `
+          <div class="author-profile-effect-wrap profile-hero-effect-wrap" aria-hidden="true">
+            <img src="${user.profile_effect}" class="author-profile-effect-img" alt="" />
+          </div>
+        ` : ''}
         <div class="profile-hero-banner">
           <img src="${user.cover_banner || '/assets/hero_banner.jpg'}" alt="Cover" class="profile-cover-img" id="profile-page-cover-img" />
           <div class="profile-hero-overlay"></div>

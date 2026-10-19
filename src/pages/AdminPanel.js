@@ -1356,7 +1356,7 @@ export function renderNicknamesTab(nicknamesData, isFounder) {
             <span class="founder-only-badge" style="background: linear-gradient(135deg, #FF384D, #FF8A00); color: #FFF; font-weight: 700; padding: 3px 10px; border-radius: 6px; font-size: 11px;">🔒 Эксклюзив: KENZO</span>
           </div>
           <p class="decorations-admin-sub" style="margin-top: 6px; color: #8E95A5; font-size: 13px;">
-            Эксклюзивная панель основателя проекта: редактирование никнеймов любых игроков и назначение уникальных эффектов оформления (Пламя Феникса, Кибер Неон, Алмазный Хром, Королевское Золото, Темный Аметист, Изумрудный Пульс, Кровавый Шторм, Космическая Небула, Киберпанк Глитч).
+            Эксклюзивная панель основателя проекта: редактирование никнеймов любых игроков и назначение уникальных эффектов оформления (28 элитных эффектов с живой анимацией грозовых молний, адского пламени, разрядов Теслы, вулканической лавы, шёлковых переливов и др.).
           </p>
         </div>
       </div>
@@ -1375,6 +1375,7 @@ export function renderNicknamesTab(nicknamesData, isFounder) {
               ${allUsers.map(u => {
                 const styleObj = getNicknameStyle(u.name_style);
                 const hasCustom = u.name_style && u.name_style !== 'default';
+                const hasEffect = !!u.profile_effect;
                 return `
                   <option value="${u.id}" 
                           data-username="${u.username}" 
@@ -1382,8 +1383,9 @@ export function renderNicknamesTab(nicknamesData, isFounder) {
                           data-role="${u.role}" 
                           data-badge="${u.role_badge || u.role}" 
                           data-level="${u.level || 1}" 
-                          data-current-style="${u.name_style || 'default'}">
-                    ${u.username} (${u.role_badge || u.role}) ${hasCustom ? `• [Стиль: ${styleObj.title}]` : ''}
+                          data-current-style="${u.name_style || 'default'}"
+                          data-current-effect="${u.profile_effect || ''}">
+                    ${u.username} (${u.role_badge || u.role}) ${hasCustom ? `• [Стиль: ${styleObj.title}]` : ''} ${hasEffect ? '• [🔥 Эффект]' : ''}
                   </option>
                 `;
               }).join('')}
@@ -1419,14 +1421,51 @@ export function renderNicknamesTab(nicknamesData, isFounder) {
             </div>
           </div>
 
+          <!-- Section 4: Discord Animated Profile Effects -->
+          <div class="modal-field" style="margin-bottom: 24px;">
+            <label style="display: block; font-size: 12px; font-weight: 600; color: #CBD5E1; margin-bottom: 6px;">4. Анимированный эффект профиля Discord (Рамка вокруг карточки автора):</label>
+            <div class="profile-effects-grid" id="nick-effects-selector" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px;">
+              <div class="profile-effect-card ${(!defaultUser.profile_effect) ? 'selected' : ''}" data-effect-url="" style="background: #171A27; border: 1.5px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 8px; cursor: pointer; text-align: center; transition: all 0.2s;">
+                <div style="font-size: 22px; margin-bottom: 4px;">🚫</div>
+                <div style="font-size: 12px; font-weight: 600; color: #FFF;">Без эффекта</div>
+                <div style="font-size: 10px; color: #64748B;">Стандартный вид</div>
+              </div>
+              <div class="profile-effect-card ${(defaultUser.profile_effect || '') === '/decorations/profile_effect_skulls.png' ? 'selected' : ''}" data-effect-url="/decorations/profile_effect_skulls.png" style="background: #171A27; border: 1.5px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 8px; cursor: pointer; text-align: center; transition: all 0.2s;">
+                <div style="font-size: 22px; margin-bottom: 4px;">🔥💀</div>
+                <div style="font-size: 12px; font-weight: 600; color: #FF384D;">Адские черепа</div>
+                <div style="font-size: 10px; color: #8E95A5;">(Discord APNG)</div>
+              </div>
+              <div class="profile-effect-card ${(defaultUser.profile_effect || '') === '/decorations/profile_effect_magic.png' ? 'selected' : ''}" data-effect-url="/decorations/profile_effect_magic.png" style="background: #171A27; border: 1.5px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 8px; cursor: pointer; text-align: center; transition: all 0.2s;">
+                <div style="font-size: 22px; margin-bottom: 4px;">✨🔮</div>
+                <div style="font-size: 12px; font-weight: 600; color: #A855F7;">Магия рун</div>
+                <div style="font-size: 10px; color: #8E95A5;">(Discord APNG)</div>
+              </div>
+              <div class="profile-effect-card ${(defaultUser.profile_effect || '') === '/decorations/profile_effect_cyber.png' ? 'selected' : ''}" data-effect-url="/decorations/profile_effect_cyber.png" style="background: #171A27; border: 1.5px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 8px; cursor: pointer; text-align: center; transition: all 0.2s;">
+                <div style="font-size: 22px; margin-bottom: 4px;">⚡🤖</div>
+                <div style="font-size: 12px; font-weight: 600; color: #06B6D4;">Киберпанк</div>
+                <div style="font-size: 10px; color: #8E95A5;">(Discord APNG)</div>
+              </div>
+              <div class="profile-effect-card ${(defaultUser.profile_effect || '') === '/decorations/profile_effect_void.png' ? 'selected' : ''}" data-effect-url="/decorations/profile_effect_void.png" style="background: #171A27; border: 1.5px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 8px; cursor: pointer; text-align: center; transition: all 0.2s;">
+                <div style="font-size: 22px; margin-bottom: 4px;">🌌🌀</div>
+                <div style="font-size: 12px; font-weight: 600; color: #6366F1;">Бездна</div>
+                <div style="font-size: 10px; color: #8E95A5;">(Discord APNG)</div>
+              </div>
+              <div class="profile-effect-card ${(defaultUser.profile_effect || '') === '/decorations/profile_effect_fire.png' ? 'selected' : ''}" data-effect-url="/decorations/profile_effect_fire.png" style="background: #171A27; border: 1.5px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 8px; cursor: pointer; text-align: center; transition: all 0.2s;">
+                <div style="font-size: 22px; margin-bottom: 4px;">🌋🔥</div>
+                <div style="font-size: 12px; font-weight: 600; color: #F97316;">Инферно</div>
+                <div style="font-size: 10px; color: #8E95A5;">(Discord APNG)</div>
+              </div>
+            </div>
+          </div>
+
           <!-- Buttons -->
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <button type="button" class="btn-create-topic" id="btn-submit-save-nick" style="background: linear-gradient(135deg, #FF384D, #FF8A00); font-weight: 700; padding: 10px 20px;">
               ${ICONS.check}
-              <span>Сохранить никнейм и стиль</span>
+              <span>Сохранить никнейм, стиль и эффект</span>
             </button>
             <button type="button" class="btn-secondary" id="btn-reset-nick-style" style="border-color: #334155; color: #94A3B8; padding: 10px 16px;">
-              <span>Сбросить стиль</span>
+              <span>Сбросить оформление</span>
             </button>
           </div>
         </div>
@@ -1438,21 +1477,31 @@ export function renderNicknamesTab(nicknamesData, isFounder) {
           </div>
 
           <!-- Mockup 1: Post Author in Thread Sidebar -->
-          <div class="preview-mockup-box">
-            <div class="preview-mockup-title">В сообщении темы (Боковая колонка):</div>
-            <div class="preview-mockup-content" style="align-items: flex-start;">
-              <div style="position: relative; width: 48px; height: 48px; flex-shrink: 0;">
-                <img src="${defaultUser.avatar || '/assets/avatar_ivan.jpg'}" id="nick-preview-avatar-1" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid #1E273A;" alt="" />
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 3px;">
-                <div id="nick-preview-name-1" style="font-size: 15px; font-weight: 700;">
+          <div class="preview-mockup-box" style="overflow: visible;">
+            <div class="preview-mockup-title">В сообщении темы (Боковая колонка автора с эффектом):</div>
+            <div class="preview-mockup-content" style="align-items: stretch; padding: 16px 12px; overflow: visible;">
+              <div class="post-author-sidebar has-profile-effect" style="width: 100%; border: 1px solid #202631; border-radius: 8px; padding: 18px 12px; margin-top: 26px;">
+                <div class="author-profile-effect-wrap" id="nick-preview-effect-wrap" style="${defaultUser.profile_effect ? '' : 'display: none;'}">
+                  <img src="${defaultUser.profile_effect || '/decorations/profile_effect_skulls.png'}" class="author-profile-effect-img" id="nick-preview-effect-img" alt="" />
+                </div>
+                <div class="post-avatar-wrap" style="width: 58px; height: 58px; border-radius: 50%; overflow: hidden; border: 2px solid #FF2338; margin-bottom: 4px;">
+                  <img src="${defaultUser.avatar || '/assets/avatar_ivan.jpg'}" id="nick-preview-avatar-1" style="width: 100%; height: 100%; object-fit: cover;" alt="" />
+                </div>
+                <div id="nick-preview-name-1" style="font-size: 14px; font-weight: 700; margin-bottom: 2px;">
                   ${renderStyledUsername(defaultUser.username, defaultUser.name_style)}
                 </div>
-                <div style="font-size: 11px; background: rgba(255, 31, 54, 0.15); color: #FF384D; border: 1px solid rgba(255, 31, 54, 0.3); padding: 1px 6px; border-radius: 4px; display: inline-block; width: fit-content;" id="nick-preview-badge-1">
+                <div style="font-size: 10.5px; background: rgba(255, 31, 54, 0.15); color: #FF384D; border: 1px solid rgba(255, 31, 54, 0.3); padding: 1px 8px; border-radius: 4px;" id="nick-preview-badge-1">
                   ${defaultUser.role_badge || defaultUser.role}
                 </div>
-                <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
-                  Уровень: <strong style="color: #FFF;">${defaultUser.level || 1}</strong> • Репутация: <strong style="color: #10B981;">+45</strong>
+                <div class="post-author-stats" style="margin-top: 8px; width: 100%; font-size: 11px; border-top: 1px solid #202631; padding-top: 6px;">
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                    <span style="color: #929BAA;">Уровень:</span>
+                    <strong style="color: #FFF;">${defaultUser.level || 1}</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #929BAA;">Репутация:</span>
+                    <strong style="color: #10B981;">+7776</strong>
+                  </div>
                 </div>
               </div>
             </div>

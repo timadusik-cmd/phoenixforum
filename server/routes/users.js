@@ -54,7 +54,7 @@ router.get('/', (req, res) => {
     const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
 
     const users = db.prepare(`
-      SELECT id, username, character_name, avatar, avatar_decoration, name_style, role, role_color, role_badge, status, 
+      SELECT id, username, character_name, avatar, avatar_decoration, profile_effect, name_style, role, role_color, role_badge, status, 
              level, current_xp, reputation, fraction, server, bio, created_at,
              (SELECT COUNT(*) FROM posts p WHERE p.author_id = users.id) as posts_count,
              (SELECT COUNT(*) FROM threads t WHERE t.author_id = users.id) as topics_count
@@ -226,7 +226,7 @@ router.get('/:idOrName', (req, res) => {
     const { idOrName } = req.params;
 
     const user = db.prepare(`
-      SELECT id, username, character_name, avatar, avatar_decoration, name_style, cover_banner, role, role_color, role_badge, status, 
+      SELECT id, username, character_name, avatar, avatar_decoration, profile_effect, name_style, cover_banner, role, role_color, role_badge, status, 
              level, current_xp, reputation, fraction, server, bio, signature, discord_tag, telegram_tag, vk_link, created_at
       FROM users
       WHERE id = ? OR username = ?

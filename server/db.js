@@ -30,6 +30,7 @@ export function initDatabase() {
       password_hash TEXT NOT NULL,
       avatar TEXT DEFAULT '/assets/avatar_ivan.jpg',
       avatar_decoration TEXT DEFAULT NULL,
+      profile_effect TEXT DEFAULT NULL,
       name_style TEXT DEFAULT 'default',
       cover_banner TEXT DEFAULT '/assets/hero_banner.jpg',
       role TEXT DEFAULT 'player', -- 'player', 'helper', 'moderator', 'admin', 'superadmin'
@@ -388,6 +389,7 @@ export function initDatabase() {
   try { db.prepare("ALTER TABLE categories ADD COLUMN badge_color TEXT DEFAULT '#FF1F36'").run(); } catch {}
   try { db.prepare("ALTER TABLE categories ADD COLUMN min_role_to_view TEXT DEFAULT 'all'").run(); } catch {}
   try { db.prepare("ALTER TABLE users ADD COLUMN avatar_decoration TEXT DEFAULT NULL").run(); } catch {}
+  try { db.prepare("ALTER TABLE users ADD COLUMN profile_effect TEXT DEFAULT NULL").run(); } catch {}
   try { db.prepare("ALTER TABLE users ADD COLUMN name_style TEXT DEFAULT 'default'").run(); } catch {}
   try { db.prepare("ALTER TABLE users ADD COLUMN last_seen_at DATETIME DEFAULT NULL").run(); } catch {}
   try { db.prepare("ALTER TABLE threads ADD COLUMN prefix_id TEXT DEFAULT NULL").run(); } catch {}
