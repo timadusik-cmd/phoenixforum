@@ -99,6 +99,7 @@ export function initDatabase() {
       is_solved INTEGER DEFAULT 0,
       is_important INTEGER DEFAULT 0,
       views_count INTEGER DEFAULT 0,
+      prefix_id TEXT DEFAULT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE CASCADE,
@@ -307,6 +308,32 @@ export function initDatabase() {
       FOREIGN KEY (giver_user_id) REFERENCES users (id) ON DELETE CASCADE
     );
 
+    -- 19. Topic Prefixes Table
+    CREATE TABLE IF NOT EXISTS prefixes (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      text_color TEXT DEFAULT '#FFFFFF',
+      bg_color TEXT DEFAULT '#10B981',
+      border_color TEXT DEFAULT 'rgba(16, 185, 129, 0.40)',
+      css_style TEXT DEFAULT 'glow', -- 'solid', 'glow', 'outline', 'gradient'
+      icon TEXT DEFAULT '',
+      min_role TEXT DEFAULT 'player', -- 'player', 'moderator', 'admin', 'superadmin'
+      display_order INTEGER DEFAULT 0,
+      apply_all INTEGER DEFAULT 0, -- 1 = all sections, 0 = specific sections in prefix_categories
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 20. Prefix Categories Junction Table
+    CREATE TABLE IF NOT EXISTS prefix_categories (
+      id TEXT PRIMARY KEY,
+      prefix_id TEXT NOT NULL,
+      category_id TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (prefix_id) REFERENCES prefixes (id) ON DELETE CASCADE,
+      FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE CASCADE,
+      UNIQUE (prefix_id, category_id)
+    );
+
     -- Indices for high performance
     CREATE INDEX IF NOT EXISTS idx_threads_category ON threads (category_id, is_pinned DESC, updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_posts_thread ON posts (thread_id, created_at ASC);
@@ -320,6 +347,8 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_custom_badges_key ON custom_badges (key);
     CREATE INDEX IF NOT EXISTS idx_user_awards_user ON user_awards (user_id, created_at ASC);
     CREATE INDEX IF NOT EXISTS idx_rep_logs_target ON reputation_logs (target_user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_prefix_cat_prefix ON prefix_categories (prefix_id);
+    CREATE INDEX IF NOT EXISTS idx_prefix_cat_category ON prefix_categories (category_id);
   `);
 
   // Seed the 20 official awards
@@ -340,6 +369,8 @@ export function initDatabase() {
   try { db.prepare("ALTER TABLE categories ADD COLUMN min_role_to_view TEXT DEFAULT 'all'").run(); } catch {}
   try { db.prepare("ALTER TABLE users ADD COLUMN avatar_decoration TEXT DEFAULT NULL").run(); } catch {}
   try { db.prepare("ALTER TABLE users ADD COLUMN last_seen_at DATETIME DEFAULT NULL").run(); } catch {}
+  try { db.prepare("ALTER TABLE threads ADD COLUMN prefix_id TEXT DEFAULT NULL").run(); } catch {}
+  try { db.prepare("CREATE INDEX IF NOT EXISTS idx_threads_prefix ON threads (prefix_id)").run(); } catch {}
 
   // Initialize standard forum categories if empty and link default sections
   try {
@@ -367,6 +398,29 @@ export function initDatabase() {
     }
   } catch (err) {
     console.error('[Database Migration] Error initializing forum categories:', err);
+  }
+
+  // Seed default Topic Prefixes if none exist
+  try {
+    const countPrefixes = db.prepare('SELECT COUNT(*) as count FROM prefixes').get().count;
+    if (countPrefixes === 0) {
+      const insertPfx = db.prepare(`
+        INSERT INTO prefixes (id, title, text_color, bg_color, border_color, css_style, icon, min_role, display_order, apply_all)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      insertPfx.run('pfx_approved', 'Одобрено', '#FFFFFF', '#10B981', 'rgba(16, 185, 129, 0.45)', 'glow', 'check', 'moderator', 1, 1);
+      insertPfx.run('pfx_rejected', 'Отказано', '#FFFFFF', '#EF4444', 'rgba(239, 68, 68, 0.45)', 'glow', 'x', 'moderator', 2, 1);
+      insertPfx.run('pfx_pending', 'На рассмотрении', '#FFFFFF', '#F59E0B', 'rgba(245, 158, 11, 0.45)', 'outline', 'clock', 'moderator', 3, 1);
+      insertPfx.run('pfx_important', 'Важно', '#FFFFFF', '#FF1F36', 'rgba(255, 31, 54, 0.50)', 'solid', 'alert-circle', 'moderator', 4, 1);
+      insertPfx.run('pfx_info', 'Информация', '#FFFFFF', '#0091FF', 'rgba(0, 145, 255, 0.45)', 'solid', 'info', 'moderator', 5, 1);
+      insertPfx.run('pfx_closed', 'Закрыто', '#94A3B8', '#1E293B', 'rgba(148, 163, 184, 0.35)', 'solid', 'lock', 'moderator', 6, 1);
+      insertPfx.run('pfx_bio', 'RP Биография', '#FFFFFF', '#8B5CF6', 'rgba(139, 92, 246, 0.45)', 'gradient', 'star', 'player', 7, 1);
+      insertPfx.run('pfx_question', 'Вопрос', '#FFFFFF', '#06B6D4', 'rgba(6, 182, 212, 0.45)', 'solid', 'help-circle', 'player', 8, 1);
+      insertPfx.run('pfx_bug', 'Баг', '#FFFFFF', '#F97316', 'rgba(249, 115, 22, 0.45)', 'outline', 'flame', 'player', 9, 1);
+      console.log('[Database] Seeded 9 default Topic Prefixes successfully.');
+    }
+  } catch (err) {
+    console.error('[Database Migration] Error seeding prefixes:', err);
   }
 
   // Ensure default custom badges and admin badges are present

@@ -24,6 +24,7 @@ import { renderSettingsPage } from './pages/SettingsPage.js';
 import { renderAdminPanel } from './pages/AdminPanel.js';
 import { renderMessagesPage } from './pages/MessagesPage.js';
 import { renderRoleBadge, renderUserBadges, registerCustomBadges, BADGE_ICONS } from './utils/badges.js';
+import { renderPrefixBadge } from './utils/prefixes.js';
 
 import { renderFooter } from './components/Footer.js';
 
@@ -123,6 +124,28 @@ router.addRoute('/forum/thread/:id', async (params) => {
   }
 });
 
+// Helper: Load available prefixes for category into Create Thread select
+async function updatePrefixOptionsForCreate(catIdOrSlug) {
+  const pfxSelect = document.getElementById('thread-prefix');
+  if (!pfxSelect) return;
+  if (!catIdOrSlug) {
+    pfxSelect.innerHTML = '<option value="">[Без префикса]</option>';
+    return;
+  }
+  try {
+    const res = await api.categories.getPrefixes(catIdOrSlug);
+    const prefixes = res.prefixes || [];
+    let opts = '<option value="">[Без префикса]</option>';
+    prefixes.forEach(p => {
+      opts += `<option value="${p.id}">${p.title}</option>`;
+    });
+    pfxSelect.innerHTML = opts;
+  } catch (err) {
+    console.error('Failed to load prefixes for category:', err);
+    pfxSelect.innerHTML = '<option value="">[Без префикса]</option>';
+  }
+}
+
 // 4. Create Thread
 router.addRoute('/forum/create', async (params, query) => {
   if (!state.user) {
@@ -140,6 +163,12 @@ router.addRoute('/forum/create', async (params, query) => {
   }
   renderAppShell(renderCreateThread(query.category || null));
   attachRichEditorEvents('thread-content');
+
+  // Populate prefixes for selected category
+  const catSelect = document.getElementById('thread-category');
+  if (catSelect && catSelect.value) {
+    updatePrefixOptionsForCreate(catSelect.value);
+  }
 });
 
 // 5. Search
@@ -288,6 +317,7 @@ router.addRoute('/admin', async (params, query) => {
     let customBadges = [];
     let auditLogs = [];
     let decorationsData = null;
+    let prefixes = [];
 
     if (tab === 'reports') {
       const repData = await api.reports.getReports('pending');
@@ -318,9 +348,25 @@ router.addRoute('/admin', async (params, query) => {
       } catch (e) {
         console.error('Error fetching decorations data:', e);
       }
+    } else if (tab === 'prefixes') {
+      const pfxRes = await api.admin.getPrefixes().catch(() => ({ prefixes: [] }));
+      prefixes = pfxRes.prefixes || [];
+      state.currentAdminPrefixes = prefixes;
+      if (!state.categories || state.categories.length === 0 || !state.forumCategories || state.forumCategories.length === 0) {
+        const catsRes = await api.categories.getAll().catch(() => ({ categories: [], forumCategories: [] }));
+        state.categories = catsRes.categories || [];
+        state.forumCategories = catsRes.forumCategories || [];
+      }
     } else if (tab === 'logs') {
       const lData = await api.admin.getAuditLogs();
       auditLogs = lData.logs || [];
+    }
+
+    // Always fetch prefixes count for overview badges if on overview
+    if (tab === 'overview') {
+      const pfxRes = await api.admin.getPrefixes().catch(() => ({ prefixes: [] }));
+      prefixes = pfxRes.prefixes || [];
+      state.currentAdminPrefixes = prefixes;
     }
 
     renderAppShell(renderAdminPanel({
@@ -332,7 +378,8 @@ router.addRoute('/admin', async (params, query) => {
       users,
       customBadges,
       auditLogs,
-      decorationsData
+      decorationsData,
+      prefixes
     }));
   } catch (err) {
     renderAppShell(`<div class="empty-threads-card"><h3>Ошибка доступа</h3><p>${err.message}</p></div>`);
@@ -485,9 +532,17 @@ function attachGlobalEvents() {
   // Create Thread Form Submission
   const formCreateThread = document.getElementById('form-create-thread');
   if (formCreateThread) {
+    const threadCatSelect = document.getElementById('thread-category');
+    if (threadCatSelect && document.getElementById('thread-prefix')) {
+      threadCatSelect.onchange = () => {
+        updatePrefixOptionsForCreate(threadCatSelect.value);
+      };
+    }
+
     formCreateThread.onsubmit = async (e) => {
       e.preventDefault();
       const category_id = document.getElementById('thread-category')?.value;
+      const prefix_id = document.getElementById('thread-prefix')?.value || null;
       const tag = document.getElementById('thread-tag')?.value;
       const title = document.getElementById('thread-title')?.value;
       const content = document.getElementById('thread-content')?.value;
@@ -496,7 +551,7 @@ function attachGlobalEvents() {
       try {
         const btn = document.getElementById('btn-submit-create-thread');
         btn.disabled = true;
-        const res = await api.threads.create({ category_id, tag, title, content, is_pinned });
+        const res = await api.threads.create({ category_id, prefix_id, tag, title, content, is_pinned });
         showToast(res.message || 'Тема успешно создана!');
         playSound('success');
         router.navigate(`/forum/thread/${res.threadId}`);
@@ -739,6 +794,85 @@ function attachGlobalEvents() {
         router.navigate('/forum');
       } catch (err) { alert(err.message); }
     };
+  }
+
+  // Fast Thread Prefix Switcher (Moderators & Authors)
+  const btnQuickPrefix = document.getElementById('btn-quick-prefix-toggle');
+  const prefixDropdown = document.getElementById('thread-prefix-dropdown');
+  const prefixDropdownList = document.getElementById('thread-prefix-dropdown-list');
+
+  if (btnQuickPrefix && prefixDropdown) {
+    btnQuickPrefix.onclick = async (e) => {
+      e.stopPropagation();
+      const isOpen = prefixDropdown.style.display !== 'none';
+      if (isOpen) {
+        prefixDropdown.style.display = 'none';
+        return;
+      }
+
+      prefixDropdown.style.display = 'block';
+      const threadId = btnQuickPrefix.getAttribute('data-thread-id');
+      const catId = btnQuickPrefix.getAttribute('data-category-id');
+
+      if (prefixDropdownList) {
+        prefixDropdownList.innerHTML = '<div style="padding: 8px; font-size: 12px; color: #8E95A5;">Загрузка префиксов...</div>';
+        try {
+          const res = await api.categories.getPrefixes(catId);
+          const prefixes = res.prefixes || [];
+
+          let itemsHtml = `
+            <div class="prefix-picker-item" data-pfx-id="" style="padding: 6px 8px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #8E95A5; transition: background 0.15s ease;">
+              <span style="border: 1px dashed rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; font-size: 11px;">Без префикса</span>
+              <span style="font-size: 11px; color: #555E70;">(Снять префикс)</span>
+            </div>
+          `;
+
+          prefixes.forEach(p => {
+            itemsHtml += `
+              <div class="prefix-picker-item" data-pfx-id="${p.id}" style="padding: 6px 8px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #FFF; transition: background 0.15s ease;">
+                ${renderPrefixBadge(p, { size: 'normal' })}
+              </div>
+            `;
+          });
+
+          prefixDropdownList.innerHTML = itemsHtml;
+
+          // Attach click listeners to items
+          prefixDropdownList.querySelectorAll('.prefix-picker-item').forEach(item => {
+            item.onmouseenter = () => item.style.background = 'rgba(255, 255, 255, 0.08)';
+            item.onmouseleave = () => item.style.background = 'transparent';
+            item.onclick = async (ev) => {
+              ev.stopPropagation();
+              const pfxId = item.getAttribute('data-pfx-id') || null;
+              try {
+                const updateRes = await api.threads.setPrefix(threadId, pfxId);
+                showToast(updateRes.message || 'Префикс темы обновлён');
+                playSound('success');
+                prefixDropdown.style.display = 'none';
+
+                // Update live header badge slot
+                const slot = document.getElementById('thread-header-prefix-slot');
+                if (slot) {
+                  const chosen = prefixes.find(p => p.id === pfxId);
+                  slot.innerHTML = chosen ? renderPrefixBadge(chosen, { size: 'header' }) : '';
+                }
+              } catch (err) {
+                alert(err.message || 'Ошибка обновления префикса');
+              }
+            };
+          });
+        } catch (err) {
+          prefixDropdownList.innerHTML = `<div style="padding: 8px; font-size: 12px; color: #EF4444;">Ошибка: ${err.message}</div>`;
+        }
+      }
+    };
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+      if (!btnQuickPrefix.contains(e.target) && !prefixDropdown.contains(e.target)) {
+        prefixDropdown.style.display = 'none';
+      }
+    });
   }
 
   // Profile Avatar Upload Handlers (in MemberProfile)
@@ -1625,6 +1759,278 @@ function attachGlobalEvents() {
       }
     };
   });
+
+  // -------------------------------------------------------------
+  // TOPIC PREFIXES ADMIN MANAGEMENT
+  // -------------------------------------------------------------
+  const modalPrefixManager = document.getElementById('modal-prefix-manager');
+  const btnOpenCreatePrefix = document.getElementById('btn-open-create-prefix-modal');
+  const btnClosePrefixModal = document.getElementById('pfx-modal-close');
+  const btnCancelPrefixModal = document.getElementById('pfx-btn-cancel');
+  const formPrefixManager = document.getElementById('form-prefix-manager');
+  const pfxApplyAllCheckbox = document.getElementById('pfx-checkbox-apply-all');
+  const pfxCatTreeContainer = document.getElementById('pfx-cat-tree-container');
+  const pfxTreeControls = document.getElementById('pfx-tree-controls');
+
+  const pfxInputTitle = document.getElementById('pfx-input-title');
+  const pfxSelectStyle = document.getElementById('pfx-select-style');
+  const pfxSelectIcon = document.getElementById('pfx-select-icon');
+  const pfxColorPicker = document.getElementById('pfx-color-picker');
+  const pfxColorHex = document.getElementById('pfx-color-hex');
+  const pfxLivePreview = document.getElementById('pfx-live-preview-box');
+
+  function updateLivePrefixBadge() {
+    if (!pfxLivePreview) return;
+    const title = pfxInputTitle?.value.trim() || 'Одобрено';
+    const style = pfxSelectStyle?.value || 'glow';
+    const icon = pfxSelectIcon?.value || 'check';
+    const color = pfxColorHex?.value.trim() || '#10B981';
+
+    pfxLivePreview.innerHTML = renderPrefixBadge({
+      title,
+      bg_color: color,
+      text_color: '#FFFFFF',
+      border_color: color,
+      css_style: style,
+      icon
+    }, { size: 'normal' });
+  }
+
+  if (pfxInputTitle) pfxInputTitle.oninput = updateLivePrefixBadge;
+  if (pfxSelectStyle) pfxSelectStyle.onchange = updateLivePrefixBadge;
+  if (pfxSelectIcon) pfxSelectIcon.onchange = updateLivePrefixBadge;
+
+  if (pfxColorPicker && pfxColorHex) {
+    pfxColorPicker.oninput = () => {
+      pfxColorHex.value = pfxColorPicker.value;
+      updateLivePrefixBadge();
+    };
+    pfxColorHex.oninput = () => {
+      if (pfxColorHex.value.startsWith('#') && (pfxColorHex.value.length === 4 || pfxColorHex.value.length === 7)) {
+        pfxColorPicker.value = pfxColorHex.value;
+      }
+      updateLivePrefixBadge();
+    };
+  }
+
+  document.querySelectorAll('.pfx-color-swatch').forEach(swatch => {
+    swatch.onclick = () => {
+      document.querySelectorAll('.pfx-color-swatch').forEach(s => s.classList.remove('active'));
+      swatch.classList.add('active');
+      const c = swatch.getAttribute('data-color') || '#10B981';
+      if (pfxColorPicker) pfxColorPicker.value = c;
+      if (pfxColorHex) pfxColorHex.value = c;
+      updateLivePrefixBadge();
+    };
+  });
+
+  if (pfxApplyAllCheckbox) {
+    pfxApplyAllCheckbox.onchange = () => {
+      const isAll = pfxApplyAllCheckbox.checked;
+      if (pfxCatTreeContainer) pfxCatTreeContainer.style.display = isAll ? 'none' : 'block';
+      if (pfxTreeControls) pfxTreeControls.style.display = isAll ? 'none' : 'flex';
+    };
+  }
+
+  const btnSelectAllPfxCats = document.getElementById('pfx-btn-select-all');
+  const btnDeselectAllPfxCats = document.getElementById('pfx-btn-deselect-all');
+  if (btnSelectAllPfxCats) {
+    btnSelectAllPfxCats.onclick = () => {
+      document.querySelectorAll('#pfx-cat-tree-container input.pfx-tree-checkbox').forEach(cb => cb.checked = true);
+    };
+  }
+  if (btnDeselectAllPfxCats) {
+    btnDeselectAllPfxCats.onclick = () => {
+      document.querySelectorAll('#pfx-cat-tree-container input.pfx-tree-checkbox').forEach(cb => cb.checked = false);
+    };
+  }
+
+  // Parent section checkbox toggles all its child subsection checkboxes
+  document.querySelectorAll('.pfx-sec-checkbox').forEach(secCb => {
+    secCb.onchange = () => {
+      const parentId = secCb.getAttribute('data-cat-id');
+      document.querySelectorAll(`.pfx-sub-checkbox[data-parent-id="${parentId}"]`).forEach(subCb => {
+        subCb.checked = secCb.checked;
+      });
+    };
+  });
+
+  if (btnOpenCreatePrefix && modalPrefixManager) {
+    btnOpenCreatePrefix.onclick = () => {
+      const heading = document.getElementById('pfx-modal-heading');
+      if (heading) heading.innerText = 'Создание нового префикса темы';
+      const saveText = document.getElementById('pfx-save-btn-text');
+      if (saveText) saveText.innerText = 'Создать префикс';
+      const editId = document.getElementById('pfx-edit-id');
+      if (editId) editId.value = '';
+
+      if (pfxInputTitle) pfxInputTitle.value = '';
+      if (pfxSelectStyle) pfxSelectStyle.value = 'glow';
+      if (pfxSelectIcon) pfxSelectIcon.value = 'check';
+      if (pfxColorPicker) pfxColorPicker.value = '#10B981';
+      if (pfxColorHex) pfxColorHex.value = '#10B981';
+      const roleSel = document.getElementById('pfx-select-min-role');
+      if (roleSel) roleSel.value = 'moderator';
+
+      if (pfxApplyAllCheckbox) pfxApplyAllCheckbox.checked = true;
+      if (pfxCatTreeContainer) pfxCatTreeContainer.style.display = 'none';
+      if (pfxTreeControls) pfxTreeControls.style.display = 'none';
+      document.querySelectorAll('#pfx-cat-tree-container input.pfx-tree-checkbox').forEach(cb => cb.checked = false);
+
+      updateLivePrefixBadge();
+      modalPrefixManager.style.display = 'flex';
+    };
+  }
+
+  if (btnClosePrefixModal && modalPrefixManager) {
+    btnClosePrefixModal.onclick = () => { modalPrefixManager.style.display = 'none'; };
+  }
+  if (btnCancelPrefixModal && modalPrefixManager) {
+    btnCancelPrefixModal.onclick = () => { modalPrefixManager.style.display = 'none'; };
+  }
+  if (modalPrefixManager) {
+    modalPrefixManager.onclick = (e) => {
+      if (e.target === modalPrefixManager) modalPrefixManager.style.display = 'none';
+    };
+  }
+
+  // Edit Prefix Button
+  document.querySelectorAll('[data-action="edit-prefix"]').forEach(btn => {
+    btn.onclick = async () => {
+      const pfxId = btn.getAttribute('data-id');
+      let pfx = (state.currentAdminPrefixes || []).find(p => p.id === pfxId);
+      if (!pfx) {
+        try {
+          const res = await api.admin.getPrefixes();
+          state.currentAdminPrefixes = res.prefixes || [];
+          pfx = state.currentAdminPrefixes.find(p => p.id === pfxId);
+        } catch (e) {
+          alert('Ошибка загрузки данных префикса');
+          return;
+        }
+      }
+      if (!pfx || !modalPrefixManager) return;
+
+      const heading = document.getElementById('pfx-modal-heading');
+      if (heading) heading.innerText = `Редактирование префикса «${pfx.title}»`;
+      const saveText = document.getElementById('pfx-save-btn-text');
+      if (saveText) saveText.innerText = 'Сохранить изменения';
+      const editId = document.getElementById('pfx-edit-id');
+      if (editId) editId.value = pfx.id;
+
+      if (pfxInputTitle) pfxInputTitle.value = pfx.title;
+      if (pfxSelectStyle) pfxSelectStyle.value = pfx.css_style || 'glow';
+      if (pfxSelectIcon) pfxSelectIcon.value = pfx.icon || 'check';
+      if (pfxColorPicker) pfxColorPicker.value = pfx.bg_color || '#10B981';
+      if (pfxColorHex) pfxColorHex.value = pfx.bg_color || '#10B981';
+      const roleSel = document.getElementById('pfx-select-min-role');
+      if (roleSel) roleSel.value = pfx.min_role || 'player';
+
+      const isAll = Boolean(pfx.apply_all);
+      if (pfxApplyAllCheckbox) pfxApplyAllCheckbox.checked = isAll;
+      if (pfxCatTreeContainer) pfxCatTreeContainer.style.display = isAll ? 'none' : 'block';
+      if (pfxTreeControls) pfxTreeControls.style.display = isAll ? 'none' : 'flex';
+
+      const assignedCatIds = new Set((pfx.categories || []).map(c => c.id));
+      document.querySelectorAll('#pfx-cat-tree-container input.pfx-tree-checkbox').forEach(cb => {
+        cb.checked = assignedCatIds.has(cb.value);
+      });
+
+      updateLivePrefixBadge();
+      modalPrefixManager.style.display = 'flex';
+    };
+  });
+
+  // Delete Prefix Button
+  document.querySelectorAll('[data-action="delete-prefix"]').forEach(btn => {
+    btn.onclick = async () => {
+      const pfxId = btn.getAttribute('data-id');
+      const title = btn.getAttribute('data-title') || 'префикс';
+      if (!confirm(`Вы действительно хотите удалить префикс «${title}»? Все темы с этим префиксом останутся на форуме (префикс будет снят).`)) return;
+
+      try {
+        const res = await api.admin.deletePrefix(pfxId);
+        showToast(res.message || 'Префикс удалён');
+        playSound('click');
+        router.resolve();
+      } catch (err) {
+        alert(err.message || 'Ошибка удаления префикса');
+      }
+    };
+  });
+
+  // Form Prefix Manager Submit
+  if (formPrefixManager) {
+    formPrefixManager.onsubmit = async (e) => {
+      e.preventDefault();
+      const pfxId = document.getElementById('pfx-edit-id')?.value;
+      const title = pfxInputTitle?.value.trim();
+      const css_style = pfxSelectStyle?.value || 'glow';
+      const icon = pfxSelectIcon?.value || 'check';
+      const bg_color = pfxColorHex?.value.trim() || '#10B981';
+      const min_role = document.getElementById('pfx-select-min-role')?.value || 'player';
+      const apply_all = pfxApplyAllCheckbox?.checked ? 1 : 0;
+
+      let category_ids = [];
+      if (!apply_all) {
+        document.querySelectorAll('#pfx-cat-tree-container input.pfx-tree-checkbox:checked').forEach(cb => {
+          category_ids.push(cb.value);
+        });
+        if (category_ids.length === 0) {
+          if (!confirm('Вы не выбрали ни одного раздела. Префикс не будет доступен ни в одном разделе форума. Продолжить?')) {
+            return;
+          }
+        }
+      }
+
+      if (!title) {
+        alert('Пожалуйста, укажите название префикса');
+        return;
+      }
+
+      const saveBtn = document.getElementById('pfx-btn-save');
+      const originalText = saveBtn?.innerHTML;
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerText = 'Сохранение...';
+      }
+
+      try {
+        if (pfxId) {
+          const res = await api.admin.updatePrefix(pfxId, {
+            title,
+            css_style,
+            icon,
+            bg_color,
+            min_role,
+            apply_all,
+            category_ids
+          });
+          showToast(res.message || 'Префикс успешно обновлён');
+        } else {
+          const res = await api.admin.createPrefix({
+            title,
+            css_style,
+            icon,
+            bg_color,
+            min_role,
+            apply_all,
+            category_ids
+          });
+          showToast(res.message || 'Префикс успешно создан');
+        }
+        playSound('success');
+        if (modalPrefixManager) modalPrefixManager.style.display = 'none';
+        router.resolve();
+      } catch (err) {
+        alert(err.message || 'Ошибка сохранения префикса');
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = originalText;
+        }
+      }
+    };
+  }
 
   // -------------------------------------------------------------
   // Reputation & Awards Modals Triggers

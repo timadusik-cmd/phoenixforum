@@ -3,6 +3,7 @@ import { state } from '../state.js';
 import { ICONS, getIcon } from '../utils/icons.js';
 import { BADGES, BADGE_ICONS, renderRoleBadge, renderUserBadges } from '../utils/badges.js';
 import { DECORATIONS, DECORATION_CATEGORIES, getDecorationById } from '../utils/decorations.js';
+import { renderPrefixBadge, PREFIX_STYLES, PREFIX_ICONS, COLOR_PRESETS } from '../utils/prefixes.js';
 
 export function renderAdminPanel(data = {}) {
   const { 
@@ -14,7 +15,8 @@ export function renderAdminPanel(data = {}) {
     users = [], 
     customBadges = [], 
     auditLogs = [],
-    decorationsData = null
+    decorationsData = null,
+    prefixes = []
   } = data;
 
   const isIvanPetrov = state.user && (state.user.username === 'Ivan_Petrov' || state.user.id === 'u_ivan_petrov');
@@ -33,7 +35,7 @@ export function renderAdminPanel(data = {}) {
         <div class="admin-badge-icon">${ICONS.shield}</div>
         <div>
           <h1 class="admin-header-title">Панель Администрации и Модерации</h1>
-          <p class="admin-header-subtitle">Управление разделами, модерация жалоб, права доступа, кастомные плашки и журнал действий.</p>
+          <p class="admin-header-subtitle">Управление разделами, префиксы тем, модерация жалоб, права доступа, кастомные плашки и журнал действий.</p>
         </div>
       </div>
 
@@ -45,6 +47,9 @@ export function renderAdminPanel(data = {}) {
             Жалобы ${stats.pendingReports > 0 ? `<span class="admin-tab-counter">${stats.pendingReports}</span>` : ''}
           </a>
           <a href="/admin?tab=categories" data-link class="filter-tab ${activeTab === 'categories' ? 'active' : ''}">Управление разделами</a>
+          <a href="/admin?tab=prefixes" data-link class="filter-tab ${activeTab === 'prefixes' ? 'active' : ''}">
+            🏷️ Префиксы тем ${prefixes.length > 0 ? `<span class="admin-tab-counter">${prefixes.length}</span>` : ''}
+          </a>
           <a href="/admin?tab=users" data-link class="filter-tab ${activeTab === 'users' ? 'active' : ''}">Пользователи и роли</a>
           ${canManageCustomBadges ? `
             <a href="/admin?tab=custom_badges" data-link class="filter-tab ${activeTab === 'custom_badges' ? 'active' : ''}">
@@ -90,6 +95,7 @@ export function renderAdminPanel(data = {}) {
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <a href="/admin?tab=reports" data-link class="btn-create-topic">Рассмотреть жалобы</a>
             <a href="/admin?tab=categories" data-link class="btn-secondary">Добавить раздел</a>
+            <a href="/admin?tab=prefixes" data-link class="btn-secondary" style="border-color: #10B981; color: #FFF; background: rgba(16, 185, 129, 0.1);">🏷️ Префиксы тем (${prefixes.length})</a>
             <a href="/admin?tab=users" data-link class="btn-secondary">Выдача ролей пользователям</a>
             ${canManageCustomBadges ? `
               <a href="/admin?tab=custom_badges" data-link class="btn-secondary" style="border-color: #FF2338; color: #FFF;">+ Создать кастомную плашку</a>
@@ -674,6 +680,9 @@ export function renderAdminPanel(data = {}) {
 
       <!-- Tab 7: Avatar Decorations (Restricted to Ivan_Petrov) -->
       ${activeTab === 'decorations' ? renderDecorationsTab(decorationsData, isIvanPetrov) : ''}
+
+      <!-- Tab 8: Topic Prefixes -->
+      ${activeTab === 'prefixes' ? renderPrefixesTab(prefixes, categories, forumCategories) : ''}
     </div>
   `;
 }
@@ -854,6 +863,283 @@ function renderDecorationsTab(decorationsData, isIvanPetrov) {
               </div>
             </div>
           `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderPrefixesTab(prefixes = [], categories = [], forumCategories = []) {
+  // Map subsections by parent_id
+  const subSectionsByParent = {};
+  categories.forEach(c => {
+    if (c.parent_id) {
+      if (!subSectionsByParent[c.parent_id]) subSectionsByParent[c.parent_id] = [];
+      subSectionsByParent[c.parent_id].push(c);
+    }
+  });
+
+  const topSections = categories.filter(c => !c.parent_id);
+
+  let categoryTreeHtml = '';
+  if (forumCategories && forumCategories.length > 0) {
+    categoryTreeHtml = forumCategories.map(fc => {
+      const fcSections = (fc.sections && fc.sections.length > 0)
+        ? fc.sections
+        : topSections.filter(s => s.forum_category_id === fc.id);
+
+      if (fcSections.length === 0) return '';
+
+      const secItems = fcSections.map(sec => {
+        const subs = (sec.subSections && sec.subSections.length > 0)
+          ? sec.subSections
+          : (subSectionsByParent[sec.id] || []);
+
+        return `
+          <div class="pfx-tree-sec-block" style="margin-bottom: 6px;">
+            <label class="pfx-tree-item">
+              <input type="checkbox" class="pfx-tree-checkbox pfx-sec-checkbox" data-cat-id="${sec.id}" value="${sec.id}" />
+              <span><strong>${sec.title}</strong></span>
+            </label>
+            ${subs.map(sub => `
+              <label class="pfx-tree-item is-sub">
+                <input type="checkbox" class="pfx-tree-checkbox pfx-sub-checkbox" data-cat-id="${sub.id}" data-parent-id="${sec.id}" value="${sub.id}" />
+                <span>↳ ${sub.title}</span>
+              </label>
+            `).join('')}
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="pfx-tree-fcat-block">
+          <div class="pfx-tree-fcat-title">
+            <span>📁 ${fc.title}</span>
+          </div>
+          <div class="pfx-tree-sections-list">
+            ${secItems}
+          </div>
+        </div>
+      `;
+    }).join('');
+  } else {
+    categoryTreeHtml = topSections.map(sec => {
+      const subs = subSectionsByParent[sec.id] || [];
+      return `
+        <div class="pfx-tree-sec-block" style="margin-bottom: 6px;">
+          <label class="pfx-tree-item">
+            <input type="checkbox" class="pfx-tree-checkbox pfx-sec-checkbox" data-cat-id="${sec.id}" value="${sec.id}" />
+            <span><strong>${sec.title}</strong></span>
+          </label>
+          ${subs.map(sub => `
+            <label class="pfx-tree-item is-sub">
+              <input type="checkbox" class="pfx-tree-checkbox pfx-sub-checkbox" data-cat-id="${sub.id}" data-parent-id="${sec.id}" value="${sub.id}" />
+              <span>↳ ${sub.title}</span>
+            </label>
+          `).join('')}
+        </div>
+      `;
+    }).join('');
+  }
+
+  return `
+    <div class="admin-section-card prefixes-admin-container">
+      <div class="prefixes-top-bar">
+        <div>
+          <h2 style="color: #FFF; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+            <span>🏷️ Управление префиксами тем форума</span>
+            <span class="wearers-count-pill" style="background: rgba(16, 185, 129, 0.2); color: #34D399; border-color: rgba(16, 185, 129, 0.4);">${prefixes.length}</span>
+          </h2>
+          <p style="color: #8E95A5; font-size: 13px; margin-top: 4px;">
+            Создавайте и настраивайте префиксы (Одобрено, Отказано, На рассмотрении, Информация, Биография и др.), задавайте цвета, свечение, иконки и разделы / подразделы, в которых они будут доступны.
+          </p>
+        </div>
+        <button type="button" class="btn-create-topic" id="btn-open-create-prefix-modal" style="background: linear-gradient(135deg, #10B981, #059669); box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);">
+          ${ICONS.plus}
+          <span>Создать префикс</span>
+        </button>
+      </div>
+
+      <!-- Prefixes List -->
+      ${prefixes.length > 0 ? `
+        <div class="prefixes-grid">
+          ${prefixes.map(pfx => {
+            const minRoleLabel = pfx.min_role === 'superadmin' ? 'Главная администрация'
+              : pfx.min_role === 'admin' ? 'Администраторы +'
+              : pfx.min_role === 'moderator' ? 'Модераторы +'
+              : 'Любой игрок';
+
+            const minRoleClass = pfx.min_role === 'superadmin' || pfx.min_role === 'admin' ? 'admin'
+              : pfx.min_role === 'moderator' ? 'moderator'
+              : 'player';
+
+            let locsHtml = '';
+            if (pfx.apply_all) {
+              locsHtml = `<span class="prefix-cat-pill all">🌐 Доступен во всех разделах</span>`;
+            } else if (pfx.categories && pfx.categories.length > 0) {
+              locsHtml = pfx.categories.map(c => `
+                <span class="prefix-cat-pill" title="Раздел форума">${c.title}</span>
+              `).join('');
+            } else {
+              locsHtml = `<span class="prefix-cat-pill" style="color: #EF4444; border-color: rgba(239, 68, 68, 0.3);">Не привязан ни к одному разделу</span>`;
+            }
+
+            return `
+              <div class="prefix-card-item" id="prefix-card-${pfx.id}" data-id="${pfx.id}">
+                <div class="prefix-card-left">
+                  <div class="prefix-preview-box">
+                    ${renderPrefixBadge(pfx, { size: 'normal' })}
+                  </div>
+
+                  <div class="prefix-meta-col">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <span class="prefix-title-text">${pfx.title}</span>
+                      <span class="prefix-role-tag ${minRoleClass}">${ICONS.shield} ${minRoleLabel}</span>
+                    </div>
+
+                    <div class="prefix-locations-wrap">
+                      ${locsHtml}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="prefix-stats-col" title="Количество созданных тем с этим префиксом">
+                  <span style="font-weight: 700; color: #FFF; font-size: 14px;">${pfx.threads_count || 0}</span>
+                  <div>тем на форуме</div>
+                </div>
+
+                <div class="prefix-actions-col">
+                  <button type="button" class="btn-edit-prefix" data-action="edit-prefix" data-id="${pfx.id}" title="Редактировать префикс">
+                    ${ICONS.edit} <span>Изменить</span>
+                  </button>
+                  <button type="button" class="btn-delete-prefix" data-action="delete-prefix" data-id="${pfx.id}" data-title="${pfx.title}" title="Удалить префикс">
+                    ${ICONS.trash}
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      ` : `
+        <div class="empty-threads-card">
+          <div class="empty-icon">${ICONS.tag || ICONS.shield}</div>
+          <h3>Префиксов пока нет</h3>
+          <p>Нажмите кнопку «Создать префикс» выше, чтобы добавить первый префикс для тем форума.</p>
+        </div>
+      `}
+
+      <!-- Create / Edit Prefix Modal -->
+      <div class="modal-backdrop" id="modal-prefix-manager" style="display: none;">
+        <div class="modal-card" style="max-width: 640px; width: 95%;">
+          <div class="modal-header">
+            <div class="modal-title-wrap">
+              <span class="modal-icon-bubble">${ICONS.tag || ICONS.shield}</span>
+              <h3 class="modal-title" id="pfx-modal-heading">Создание нового префикса темы</h3>
+            </div>
+            <button type="button" class="modal-close" id="pfx-modal-close">✕</button>
+          </div>
+
+          <form id="form-prefix-manager">
+            <input type="hidden" id="pfx-edit-id" value="" />
+
+            <!-- Title & Live Preview -->
+            <div style="display: grid; grid-template-columns: 1fr 200px; gap: 14px; align-items: flex-end; margin-bottom: 14px;">
+              <div class="modal-field" style="margin-bottom: 0;">
+                <label>Название префикса *</label>
+                <input 
+                  type="text" 
+                  class="modal-input" 
+                  id="pfx-input-title" 
+                  placeholder="Например: Одобрено, Отказано, Важно..." 
+                  required 
+                  maxlength="30"
+                />
+              </div>
+
+              <div>
+                <label style="display: block; font-size: 11px; text-transform: uppercase; color: #8E95A5; font-weight: 700; margin-bottom: 6px;">Предпросмотр:</label>
+                <div id="pfx-live-preview-box" style="height: 42px; background: #07090D; border: 1px solid #1E2638; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 4px;">
+                  ${renderPrefixBadge({ title: 'Одобрено', bg_color: '#10B981', text_color: '#FFFFFF', border_color: 'rgba(16,185,129,0.5)', css_style: 'glow', icon: 'check' })}
+                </div>
+              </div>
+            </div>
+
+            <!-- Style & Icon Row -->
+            <div class="form-row-grid" style="margin-bottom: 14px;">
+              <div class="modal-field">
+                <label>Стиль оформления</label>
+                <select class="modal-select" id="pfx-select-style">
+                  ${PREFIX_STYLES.map(s => `<option value="${s.key}">${s.label}</option>`).join('')}
+                </select>
+              </div>
+
+              <div class="modal-field">
+                <label>Иконка префикса</label>
+                <select class="modal-select" id="pfx-select-icon">
+                  ${PREFIX_ICONS.map(i => `<option value="${i.key}">${i.label}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+
+            <!-- Color Selection & Presets -->
+            <div class="modal-field" style="margin-bottom: 14px;">
+              <label>Основной цвет префикса</label>
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                <input type="color" id="pfx-color-picker" value="#10B981" class="color-picker-native" style="width: 44px; height: 38px; border-radius: 6px; cursor: pointer; border: 1px solid #202631; background: transparent;" />
+                <input type="text" class="modal-input" id="pfx-color-hex" value="#10B981" style="width: 120px; font-family: monospace;" maxlength="7" />
+                <span style="font-size: 12px; color: #8E95A5;">или выберите готовый RP цвет:</span>
+              </div>
+
+              <div class="pfx-color-swatches">
+                ${COLOR_PRESETS.map(cp => `
+                  <button type="button" class="pfx-color-swatch ${cp.bg === '#10B981' ? 'active' : ''}" data-color="${cp.bg}" data-border="${cp.border}" style="background: ${cp.bg};" title="${cp.label}"></button>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Permission / Minimum Role -->
+            <div class="modal-field" style="margin-bottom: 16px;">
+              <label>Кто может устанавливать этот префикс?</label>
+              <select class="modal-select" id="pfx-select-min-role">
+                <option value="player">👤 Любой игрок (при создании темы: Вопрос, Гайд, Биография, Рынок)</option>
+                <option value="moderator" selected>🛡️ Модераторы и выше (для вердиктов: Одобрено, Отказано, Рассмотрение)</option>
+                <option value="admin">👑 Администраторы и выше (для официальных объявлений, важных тем)</option>
+                <option value="superadmin">🔒 Только Главный Администратор</option>
+              </select>
+            </div>
+
+            <!-- Where can this prefix be used (Sections & Subsections) -->
+            <div class="modal-field" style="margin-bottom: 18px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                <label style="margin: 0;">Где может использоваться префикс?</label>
+                <div id="pfx-tree-controls" style="display: none; gap: 8px;">
+                  <button type="button" class="btn-mini-history" id="pfx-btn-select-all" style="font-size: 11px;">Выбрать все</button>
+                  <button type="button" class="btn-mini-history" id="pfx-btn-deselect-all" style="font-size: 11px;">Снять все</button>
+                </div>
+              </div>
+
+              <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="pfx-checkbox-apply-all" checked style="accent-color: #FF1F36; width: 16px; height: 16px; cursor: pointer;" />
+                <label for="pfx-checkbox-apply-all" style="font-size: 13px; color: #FFFFFF; cursor: pointer; font-weight: 600;">
+                  Доступен во всех разделах и подразделах форума
+                </label>
+              </div>
+
+              <!-- Tree Container -->
+              <div class="pfx-cat-tree-container" id="pfx-cat-tree-container" style="display: none;">
+                ${categoryTreeHtml}
+              </div>
+            </div>
+
+            <!-- Actions Bar -->
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; border-top: 1px solid #1E2638; padding-top: 14px;">
+              <button type="button" class="btn-secondary" id="pfx-btn-cancel">Отмена</button>
+              <button type="submit" class="btn-create-topic" id="pfx-btn-save" style="background: linear-gradient(135deg, #10B981, #059669);">
+                ${ICONS.check}
+                <span id="pfx-save-btn-text">Сохранить префикс</span>
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

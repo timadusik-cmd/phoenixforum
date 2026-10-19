@@ -120,12 +120,20 @@ export function renderCreateThread(selectedCategorySlug = null) {
         ` : ''}
 
         <form id="form-create-thread">
-          <div class="form-row-grid">
+          <div class="form-row-grid" style="grid-template-columns: 1.8fr 1.2fr 1fr;">
             <!-- Category Select -->
             <div class="modal-field">
               <label>Раздел / подраздел форума *</label>
               <select class="modal-select" id="thread-category" required>
                 ${selectOptionsHtml}
+              </select>
+            </div>
+
+            <!-- Prefix Select -->
+            <div class="modal-field" id="field-thread-prefix">
+              <label>Префикс темы</label>
+              <select class="modal-select" id="thread-prefix">
+                <option value="">[Без префикса]</option>
               </select>
             </div>
 

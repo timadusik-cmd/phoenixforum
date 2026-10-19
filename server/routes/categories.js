@@ -1,7 +1,59 @@
 import { Router } from 'express';
 import db from '../db.js';
+import { optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
+
+// GET prefixes for a category/subsection
+router.get('/:idOrSlug/prefixes', optionalAuth, (req, res) => {
+  try {
+    const { idOrSlug } = req.params;
+    let category = db.prepare('SELECT * FROM categories WHERE id = ? OR slug = ?').get(idOrSlug, idOrSlug);
+    if (!category) {
+      const clean = idOrSlug.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const all = db.prepare('SELECT * FROM categories').all();
+      category = all.find(c => c.slug.toLowerCase().replace(/[^a-z0-9]/g, '') === clean);
+    }
+
+    const userRole = (req.user && req.user.role) ? req.user.role : 'player';
+
+    const ROLE_LEVELS = {
+      player: 1,
+      helper: 2,
+      moderator: 3,
+      admin: 4,
+      superadmin: 5
+    };
+    const userLevel = ROLE_LEVELS[userRole] || 1;
+
+    let prefixes = [];
+    if (category) {
+      prefixes = db.prepare(`
+        SELECT p.*
+        FROM prefixes p
+        WHERE (p.apply_all = 1 OR p.id IN (SELECT prefix_id FROM prefix_categories WHERE category_id = ?))
+        ORDER BY p.display_order ASC, p.title ASC
+      `).all(category.id);
+    } else {
+      prefixes = db.prepare(`
+        SELECT p.*
+        FROM prefixes p
+        WHERE p.apply_all = 1
+        ORDER BY p.display_order ASC, p.title ASC
+      `).all();
+    }
+
+    const available = prefixes.filter(pfx => {
+      const minLevel = ROLE_LEVELS[pfx.min_role] || 1;
+      return userLevel >= minLevel;
+    });
+
+    res.json({ prefixes: available });
+  } catch (err) {
+    console.error('Error fetching category prefixes:', err);
+    res.status(500).json({ error: 'Ошибка получения префиксов раздела.' });
+  }
+});
 
 // GET all categories with live counts, forum categories hierarchy, and last message stats
 router.get('/', (req, res) => {
@@ -183,12 +235,16 @@ router.get('/:slug', (req, res) => {
              c.title as category_title, c.slug as category_slug,
              u.id as author_id, u.username as author_name, u.avatar as author_avatar, 
              u.role as author_role, u.role_badge as author_badge, u.role_color as author_color,
+             pfx.id as prefix_id, pfx.title as prefix_title, pfx.text_color as prefix_text_color,
+             pfx.bg_color as prefix_bg_color, pfx.border_color as prefix_border_color,
+             pfx.css_style as prefix_css_style, pfx.icon as prefix_icon,
              (SELECT COUNT(*) FROM posts p WHERE p.thread_id = t.id) - 1 AS replies_count,
              (SELECT p2.created_at FROM posts p2 WHERE p2.thread_id = t.id ORDER BY p2.created_at DESC LIMIT 1) as last_reply_at,
              (SELECT u2.username FROM posts p3 JOIN users u2 ON p3.author_id = u2.id WHERE p3.thread_id = t.id ORDER BY p3.created_at DESC LIMIT 1) as last_reply_user
       FROM threads t
       JOIN users u ON t.author_id = u.id
       LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN prefixes pfx ON t.prefix_id = pfx.id
       WHERE (t.category_id = ? OR t.category_id IN (SELECT id FROM categories WHERE parent_id = ?)) ${filterClause}
       ORDER BY t.is_pinned DESC, t.updated_at DESC
       LIMIT ? OFFSET ?

@@ -9856,3 +9856,371 @@ input, textarea, select {
   box-shadow: 0 4px 12px rgba(255, 31, 54, 0.4);
 }
 
+/* ==========================================================================
+   Topic Prefixes (Префиксы тем)
+   ========================================================================== */
+.thread-prefix-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 5px;
+  line-height: 1;
+  vertical-align: middle;
+  white-space: nowrap;
+  user-select: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+}
+
+.thread-prefix-badge:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+.thread-prefix-badge.size-normal {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.thread-prefix-badge.size-compact {
+  padding: 2px 6px;
+  font-size: 10px;
+  gap: 4px;
+}
+
+.thread-prefix-badge.size-header {
+  padding: 5px 12px;
+  font-size: 13px;
+  border-radius: 6px;
+  gap: 6px;
+}
+
+.thread-prefix-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+}
+
+.thread-prefix-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.thread-prefix-badge.size-header .thread-prefix-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Admin Prefixes Management Tab */
+.prefixes-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.prefixes-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.prefix-card-item {
+  background: #0D111A;
+  border: 1px solid #1E2638;
+  border-radius: 10px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  transition: all 0.2s ease;
+}
+
+.prefix-card-item:hover {
+  border-color: #2D3952;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3);
+}
+
+.prefix-card-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: 1;
+  min-width: 0;
+}
+
+.prefix-preview-box {
+  min-width: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.prefix-meta-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.prefix-title-text {
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.prefix-role-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #94A3B8;
+  width: fit-content;
+}
+
+.prefix-role-tag.moderator {
+  background: rgba(0, 145, 255, 0.15);
+  color: #60A5FA;
+}
+
+.prefix-role-tag.admin {
+  background: rgba(255, 31, 54, 0.15);
+  color: #F87171;
+}
+
+.prefix-locations-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.prefix-cat-pill {
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #141A26;
+  border: 1px solid #202A3C;
+  color: #CBD5E1;
+}
+
+.prefix-cat-pill.all {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #34D399;
+  font-weight: 600;
+}
+
+.prefix-stats-col {
+  font-size: 12px;
+  color: #8E95A5;
+  text-align: right;
+  min-width: 90px;
+}
+
+.prefix-actions-col {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-edit-prefix,
+.btn-delete-prefix {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.btn-edit-prefix {
+  background: #192132;
+  border: 1px solid #2A364F;
+  color: #E2E8F0;
+}
+
+.btn-edit-prefix:hover {
+  background: #232E45;
+  color: #FFFFFF;
+  border-color: #3B82F6;
+}
+
+.btn-delete-prefix {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #F87171;
+}
+
+.btn-delete-prefix:hover {
+  background: #EF4444;
+  color: #FFFFFF;
+}
+
+/* Category Tree in Prefix Modal */
+.pfx-cat-tree-container {
+  background: #0B0E14;
+  border: 1px solid #1E2638;
+  border-radius: 8px;
+  padding: 12px;
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pfx-tree-fcat-block {
+  border-bottom: 1px solid #161D2B;
+  padding-bottom: 8px;
+}
+
+.pfx-tree-fcat-block:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.pfx-tree-fcat-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #FF1F36;
+  font-weight: 700;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pfx-tree-sections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 8px;
+}
+
+.pfx-tree-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #CBD5E1;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+.pfx-tree-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.pfx-tree-item.is-sub {
+  margin-left: 18px;
+  color: #94A3B8;
+  font-size: 12px;
+}
+
+.pfx-tree-checkbox {
+  accent-color: #FF1F36;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+/* Color swatches in Prefix Modal */
+.pfx-color-swatches {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.pfx-color-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pfx-color-swatch:hover,
+.pfx-color-swatch.active {
+  transform: scale(1.15);
+  border-color: #FFFFFF;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+}
+
+/* Quick Prefix Switcher for Thread View */
+.thread-prefix-quick-btn {
+  background: #141924;
+  border: 1px solid #242E42;
+  color: #E2E8F0;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.thread-prefix-quick-btn:hover {
+  background: #1E2638;
+  border-color: #3B82F6;
+  color: #FFFFFF;
+}
+
+.prefix-picker-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  background: #0E121B;
+  border: 1px solid #242E42;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+  z-index: 999;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prefix-picker-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.prefix-picker-option:hover {
+  background: #182030;
+}
+
+

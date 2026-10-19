@@ -257,9 +257,13 @@ router.get('/:idOrName', (req, res) => {
     // Recent user topics
     const recentTopics = db.prepare(`
       SELECT t.id, t.title, t.tag, t.created_at, t.views_count, c.title as category_title, c.slug as category_slug,
+             pfx.id as prefix_id, pfx.title as prefix_title, pfx.text_color as prefix_text_color,
+             pfx.bg_color as prefix_bg_color, pfx.border_color as prefix_border_color,
+             pfx.css_style as prefix_css_style, pfx.icon as prefix_icon,
              (SELECT COUNT(*) FROM posts p WHERE p.thread_id = t.id) - 1 as replies_count
       FROM threads t
       JOIN categories c ON t.category_id = c.id
+      LEFT JOIN prefixes pfx ON t.prefix_id = pfx.id
       WHERE t.author_id = ?
       ORDER BY t.created_at DESC
       LIMIT 5

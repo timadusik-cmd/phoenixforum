@@ -4,6 +4,7 @@ import { ICONS } from '../utils/icons.js';
 import { renderRoleBadge, renderUserBadges } from '../utils/badges.js';
 import { formatTimeAgo } from '../utils/time.js';
 import { renderLevelShield, getLevelProgress, renderAwardCard } from '../utils/awards.js';
+import { renderPrefixBadge } from '../utils/prefixes.js';
 
 export function renderMemberProfile(data) {
   const { user, recentTopics = [], recentPosts = [] } = data;
@@ -253,6 +254,7 @@ export function renderMemberProfile(data) {
                       <div class="profile-topic-cat-badge">
                         ${t.category_title || 'Новости и объявления'}
                       </div>
+                      ${t.prefix_title ? renderPrefixBadge(t, { size: 'normal' }) : ''}
                       <a href="/forum/thread/${t.id}" data-link class="profile-topic-title">
                         ${t.title}
                       </a>

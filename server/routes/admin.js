@@ -990,4 +990,210 @@ router.delete('/users/:id/decoration', requireIvanPetrov, (req, res) => {
   }
 });
 
+// ==========================================
+// 8. Topic Prefixes Management
+// ==========================================
+
+// GET all prefixes with associated category mappings and thread counts
+router.get('/prefixes', (req, res) => {
+  try {
+    const prefixes = db.prepare(`
+      SELECT p.*,
+             (SELECT COUNT(*) FROM threads t WHERE t.prefix_id = p.id) as threads_count
+      FROM prefixes p
+      ORDER BY p.display_order ASC, p.created_at ASC
+    `).all();
+
+    const getPrefixCats = db.prepare(`
+      SELECT c.id, c.title, c.slug, c.parent_id, c.forum_category_id
+      FROM prefix_categories pc
+      JOIN categories c ON pc.category_id = c.id
+      WHERE pc.prefix_id = ?
+      ORDER BY c.display_order ASC, c.title ASC
+    `);
+
+    const enriched = prefixes.map(pfx => {
+      const cats = pfx.apply_all ? [] : getPrefixCats.all(pfx.id);
+      return {
+        ...pfx,
+        categories: cats,
+        category_ids: cats.map(c => c.id)
+      };
+    });
+
+    res.json({ prefixes: enriched });
+  } catch (err) {
+    console.error('Error fetching admin prefixes:', err);
+    res.status(500).json({ error: 'Ошибка при загрузке префиксов тем.' });
+  }
+});
+
+// POST Create new topic prefix
+router.post('/prefixes', requireRole('admin'), (req, res) => {
+  try {
+    const {
+      title,
+      text_color = '#FFFFFF',
+      bg_color = '#10B981',
+      border_color = 'rgba(16, 185, 129, 0.45)',
+      css_style = 'glow',
+      icon = '',
+      min_role = 'player',
+      display_order = 0,
+      apply_all = 1,
+      category_ids = []
+    } = req.body;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Укажите название префикса.' });
+    }
+
+    const cleanTitle = title.trim();
+    const id = 'pfx_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+    const applyAllFlag = apply_all ? 1 : 0;
+
+    const createTx = db.transaction(() => {
+      db.prepare(`
+        INSERT INTO prefixes (id, title, text_color, bg_color, border_color, css_style, icon, min_role, display_order, apply_all, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      `).run(id, cleanTitle, text_color, bg_color, border_color, css_style, icon || '', min_role, display_order || 0, applyAllFlag);
+
+      if (!applyAllFlag && Array.isArray(category_ids) && category_ids.length > 0) {
+        const insertPfxCat = db.prepare(`
+          INSERT OR IGNORE INTO prefix_categories (id, prefix_id, category_id, created_at)
+          VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        `);
+        category_ids.forEach((catId, idx) => {
+          if (catId) {
+            insertPfxCat.run(`pfc_${Date.now()}_${idx}`, id, catId);
+          }
+        });
+      }
+
+      db.prepare(`
+        INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+        VALUES (?, ?, 'create_prefix', 'prefix', ?, ?, ?)
+      `).run('log_' + Date.now(), req.user.id, id, `Создание префикса темы: ${cleanTitle}`, req.ip || '');
+    });
+
+    createTx();
+
+    res.json({ message: 'Префикс успешно создан!', id });
+  } catch (err) {
+    console.error('Error creating prefix:', err);
+    res.status(500).json({ error: 'Ошибка создания префикса: ' + (err.message || 'неизвестная ошибка') });
+  }
+});
+
+// PUT Update topic prefix
+router.put('/prefixes/:id', requireRole('admin'), (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM prefixes WHERE id = ?').get(id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Префикс не найден.' });
+    }
+
+    const {
+      title,
+      text_color,
+      bg_color,
+      border_color,
+      css_style,
+      icon,
+      min_role,
+      display_order,
+      apply_all,
+      category_ids
+    } = req.body;
+
+    const cleanTitle = title ? title.trim() : existing.title;
+    const applyAllFlag = apply_all !== undefined ? (apply_all ? 1 : 0) : existing.apply_all;
+
+    const updateTx = db.transaction(() => {
+      db.prepare(`
+        UPDATE prefixes
+        SET title = ?,
+            text_color = COALESCE(?, text_color),
+            bg_color = COALESCE(?, bg_color),
+            border_color = COALESCE(?, border_color),
+            css_style = COALESCE(?, css_style),
+            icon = COALESCE(?, icon),
+            min_role = COALESCE(?, min_role),
+            display_order = COALESCE(?, display_order),
+            apply_all = ?
+        WHERE id = ?
+      `).run(
+        cleanTitle,
+        text_color,
+        bg_color,
+        border_color,
+        css_style,
+        icon,
+        min_role,
+        display_order,
+        applyAllFlag,
+        id
+      );
+
+      // Re-link categories
+      db.prepare('DELETE FROM prefix_categories WHERE prefix_id = ?').run(id);
+
+      if (!applyAllFlag && Array.isArray(category_ids) && category_ids.length > 0) {
+        const insertPfxCat = db.prepare(`
+          INSERT OR IGNORE INTO prefix_categories (id, prefix_id, category_id, created_at)
+          VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        `);
+        category_ids.forEach((catId, idx) => {
+          if (catId) {
+            insertPfxCat.run(`pfc_${Date.now()}_${idx}`, id, catId);
+          }
+        });
+      }
+
+      db.prepare(`
+        INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+        VALUES (?, ?, 'update_prefix', 'prefix', ?, ?, ?)
+      `).run('log_' + Date.now(), req.user.id, id, `Обновление префикса темы: ${cleanTitle}`, req.ip || '');
+    });
+
+    updateTx();
+
+    res.json({ message: 'Префикс успешно обновлён!' });
+  } catch (err) {
+    console.error('Error updating prefix:', err);
+    res.status(500).json({ error: 'Ошибка обновления префикса: ' + (err.message || 'неизвестная ошибка') });
+  }
+});
+
+// DELETE topic prefix
+router.delete('/prefixes/:id', requireRole('admin'), (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM prefixes WHERE id = ?').get(id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Префикс не найден.' });
+    }
+
+    const delTx = db.transaction(() => {
+      // Unlink threads using this prefix
+      db.prepare('UPDATE threads SET prefix_id = NULL WHERE prefix_id = ?').run(id);
+      db.prepare('DELETE FROM prefix_categories WHERE prefix_id = ?').run(id);
+      db.prepare('DELETE FROM prefixes WHERE id = ?').run(id);
+
+      db.prepare(`
+        INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+        VALUES (?, ?, 'delete_prefix', 'prefix', ?, ?, ?)
+      `).run('log_' + Date.now(), req.user.id, id, `Удаление префикса темы: ${existing.title}`, req.ip || '');
+    });
+
+    delTx();
+
+    res.json({ message: `Префикс «${existing.title}» успешно удалён.` });
+  } catch (err) {
+    console.error('Error deleting prefix:', err);
+    res.status(500).json({ error: 'Ошибка при удалении префикса: ' + (err.message || 'неизвестная ошибка') });
+  }
+});
+
 export default router;

@@ -13,10 +13,14 @@ router.get('/recent', (req, res) => {
       SELECT t.id, t.title, t.tag, t.created_at, t.views_count,
              u.id as author_id, u.username as author_name, u.avatar as author_avatar,
              c.title as category_title, c.slug as category_slug,
+             pfx.id as prefix_id, pfx.title as prefix_title, pfx.text_color as prefix_text_color,
+             pfx.bg_color as prefix_bg_color, pfx.border_color as prefix_border_color,
+             pfx.css_style as prefix_css_style, pfx.icon as prefix_icon,
              (SELECT COUNT(*) FROM posts p WHERE p.thread_id = t.id) - 1 as replies_count
       FROM threads t
       JOIN users u ON t.author_id = u.id
       JOIN categories c ON t.category_id = c.id
+      LEFT JOIN prefixes pfx ON t.prefix_id = pfx.id
       ORDER BY t.created_at DESC
       LIMIT 8
     `).all();
@@ -42,10 +46,14 @@ router.get('/:id', optionalAuth, (req, res) => {
              u.avatar_decoration as author_avatar_decoration,
              u.role as author_role, u.role_badge as author_badge, u.role_color as author_color,
              u.level as author_level, u.reputation as author_reputation, u.fraction as author_fraction,
-             u.created_at as author_joined
+             u.created_at as author_joined,
+             pfx.id as prefix_id, pfx.title as prefix_title, pfx.text_color as prefix_text_color,
+             pfx.bg_color as prefix_bg_color, pfx.border_color as prefix_border_color,
+             pfx.css_style as prefix_css_style, pfx.icon as prefix_icon
       FROM threads t
       JOIN categories c ON t.category_id = c.id
       JOIN users u ON t.author_id = u.id
+      LEFT JOIN prefixes pfx ON t.prefix_id = pfx.id
       WHERE t.id = ?
     `).get(id);
 
@@ -138,7 +146,7 @@ router.get('/:id', optionalAuth, (req, res) => {
 // POST Create Thread
 router.post('/', requireAuth, (req, res) => {
   try {
-    const { category_id, title, content, tag, is_pinned } = req.body;
+    const { category_id, title, content, tag, is_pinned, prefix_id } = req.body;
 
     if (!category_id || !title || !content) {
       return res.status(400).json({ error: 'Укажите раздел, заголовок и текст темы.' });
@@ -176,6 +184,22 @@ router.post('/', requireAuth, (req, res) => {
       return res.status(403).json({ error: `В этот раздел могут публиковать только пользователи с рангом ${category.min_role_to_post} и выше.` });
     }
 
+    // Validate and check prefix if provided
+    let validPrefixId = null;
+    if (prefix_id) {
+      const pfx = db.prepare('SELECT * FROM prefixes WHERE id = ?').get(prefix_id);
+      if (pfx) {
+        const isAllowedInCat = pfx.apply_all === 1 || !!db.prepare('SELECT 1 FROM prefix_categories WHERE prefix_id = ? AND category_id = ?').get(pfx.id, category.id);
+        const ROLE_LEVELS = { player: 1, helper: 2, moderator: 3, admin: 4, superadmin: 5 };
+        const userLevel = ROLE_LEVELS[req.user.role] || 1;
+        const minLevel = ROLE_LEVELS[pfx.min_role] || 1;
+
+        if (isAllowedInCat && userLevel >= minLevel) {
+          validPrefixId = pfx.id;
+        }
+      }
+    }
+
     const threadId = 'th_' + Date.now() + '_' + Math.round(Math.random() * 1000);
     const postId = 'post_' + Date.now() + '_1';
 
@@ -185,9 +209,9 @@ router.post('/', requireAuth, (req, res) => {
     // Database transaction
     const createTx = db.transaction(() => {
       db.prepare(`
-        INSERT INTO threads (id, category_id, author_id, title, tag, is_pinned, is_locked, is_solved, is_important, views_count, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      `).run(threadId, category.id, req.user.id, cleanTitle, tag || 'Обсуждение', pinFlag);
+        INSERT INTO threads (id, category_id, author_id, title, tag, is_pinned, is_locked, is_solved, is_important, views_count, prefix_id, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0, 1, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `).run(threadId, category.id, req.user.id, cleanTitle, tag || 'Обсуждение', pinFlag, validPrefixId);
 
       db.prepare(`
         INSERT INTO posts (id, thread_id, author_id, content, is_first_post, is_solution, created_at, updated_at)
@@ -225,6 +249,82 @@ router.post('/', requireAuth, (req, res) => {
   } catch (err) {
     console.error('Error creating thread:', err);
     res.status(500).json({ error: 'Ошибка сервера при создании темы.' });
+  }
+});
+
+// Fast update thread prefix (for moderators/admins or thread author)
+router.put('/:id/prefix', requireAuth, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { prefix_id } = req.body;
+
+    const thread = db.prepare('SELECT * FROM threads WHERE id = ?').get(id);
+    if (!thread) {
+      return res.status(404).json({ error: 'Тема не найдена.' });
+    }
+
+    const isMod = hasPermission(req.user.role, 'moderator');
+    const isAuthor = req.user.id === thread.author_id;
+
+    if (!isMod && !isAuthor) {
+      return res.status(403).json({ error: 'Недостаточно прав для изменения префикса.' });
+    }
+
+    let newPrefixId = null;
+    let prefixObj = null;
+
+    if (prefix_id) {
+      prefixObj = db.prepare('SELECT * FROM prefixes WHERE id = ?').get(prefix_id);
+      if (!prefixObj) {
+        return res.status(400).json({ error: 'Указанный префикс не существует.' });
+      }
+
+      // Check category allowance
+      const isAllowedInCat = prefixObj.apply_all === 1 || !!db.prepare('SELECT 1 FROM prefix_categories WHERE prefix_id = ? AND category_id = ?').get(prefixObj.id, thread.category_id);
+      if (!isAllowedInCat) {
+        return res.status(400).json({ error: 'Этот префикс недоступен для данного раздела.' });
+      }
+
+      // Check role
+      const ROLE_LEVELS = { player: 1, helper: 2, moderator: 3, admin: 4, superadmin: 5 };
+      const userLevel = ROLE_LEVELS[req.user.role] || 1;
+      const minLevel = ROLE_LEVELS[prefixObj.min_role] || 1;
+      if (userLevel < minLevel) {
+        return res.status(403).json({ error: `Этот префикс доступен только с ранга «${prefixObj.min_role}».` });
+      }
+
+      newPrefixId = prefixObj.id;
+    }
+
+    db.prepare('UPDATE threads SET prefix_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newPrefixId, id);
+
+    db.prepare(`
+      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+      VALUES (?, ?, 'update_thread_prefix', 'thread', ?, ?, ?)
+    `).run(
+      'log_' + Date.now(),
+      req.user.id,
+      id,
+      `Смена префикса темы «${thread.title}» на ${prefixObj ? `«${prefixObj.title}»` : '«Без префикса»'}`,
+      req.ip || ''
+    );
+
+    res.json({
+      message: 'Префикс темы успешно обновлён!',
+      prefix_id: newPrefixId,
+      prefix: prefixObj ? {
+        id: prefixObj.id,
+        title: prefixObj.title,
+        text_color: prefixObj.text_color,
+        bg_color: prefixObj.bg_color,
+        border_color: prefixObj.border_color,
+        css_style: prefixObj.css_style,
+        icon: prefixObj.icon
+      } : null
+    });
+  } catch (err) {
+    console.error('Error updating thread prefix:', err);
+    res.status(500).json({ error: 'Ошибка обновления префикса темы.' });
   }
 });
 

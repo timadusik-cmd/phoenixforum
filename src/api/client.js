@@ -103,7 +103,8 @@ export const api = {
   // Categories
   categories: {
     getAll: () => request('/api/categories'),
-    getBySlug: (slug, filter = 'all', page = 1) => request(`/api/categories/${encodeURIComponent(slug)}?filter=${filter}&page=${page}`)
+    getBySlug: (slug, filter = 'all', page = 1) => request(`/api/categories/${encodeURIComponent(slug)}?filter=${filter}&page=${page}`),
+    getPrefixes: (idOrSlug) => request(`/api/categories/${encodeURIComponent(idOrSlug)}/prefixes`)
   },
 
   // Threads
@@ -112,6 +113,7 @@ export const api = {
     getById: (id) => request(`/api/threads/${encodeURIComponent(id)}`),
     create: (threadData) => request('/api/threads', { method: 'POST', body: threadData }),
     update: (id, threadData) => request(`/api/threads/${encodeURIComponent(id)}`, { method: 'PUT', body: threadData }),
+    setPrefix: (id, prefix_id) => request(`/api/threads/${encodeURIComponent(id)}/prefix`, { method: 'PUT', body: { prefix_id } }),
     togglePin: (id) => request(`/api/threads/${encodeURIComponent(id)}/pin`, { method: 'PUT' }),
     toggleLock: (id) => request(`/api/threads/${encodeURIComponent(id)}/lock`, { method: 'PUT' }),
     toggleSubscribe: (id) => request(`/api/threads/${encodeURIComponent(id)}/subscribe`, { method: 'POST' }),
@@ -218,7 +220,13 @@ export const api = {
       const body = typeof data === 'string' ? { decoration_url: data } : data;
       return request(`/api/admin/users/${encodeURIComponent(userId)}/decoration`, { method: 'POST', body });
     },
-    removeUserDecoration: (userId) => request(`/api/admin/users/${encodeURIComponent(userId)}/decoration`, { method: 'DELETE' })
+    removeUserDecoration: (userId) => request(`/api/admin/users/${encodeURIComponent(userId)}/decoration`, { method: 'DELETE' }),
+
+    // Topic Prefixes Management
+    getPrefixes: () => request('/api/admin/prefixes'),
+    createPrefix: (data) => request('/api/admin/prefixes', { method: 'POST', body: data }),
+    updatePrefix: (id, data) => request(`/api/admin/prefixes/${encodeURIComponent(id)}`, { method: 'PUT', body: data }),
+    deletePrefix: (id) => request(`/api/admin/prefixes/${encodeURIComponent(id)}`, { method: 'DELETE' })
   },
 
   // Uploads

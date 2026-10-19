@@ -1,6 +1,7 @@
 // Phoenix RP Forum - Category View Page
 import { state } from '../state.js';
 import { ICONS, getIcon } from '../utils/icons.js';
+import { renderPrefixBadge } from '../utils/prefixes.js';
 
 export function renderCategoryView(data) {
   const { category, parentCategory, subSections, threads, pagination, currentFilter = 'all' } = data;
@@ -31,6 +32,7 @@ export function renderCategoryView(data) {
               ${t.is_pinned ? `<span class="badge-tag pinned">${ICONS.pin} Закреплено</span>` : ''}
               ${t.is_locked ? `<span class="badge-tag locked">${ICONS.lock} Закрыто</span>` : ''}
               ${t.is_solved ? `<span class="badge-tag solved">${ICONS.check} Решено</span>` : ''}
+              ${t.prefix_title ? renderPrefixBadge(t, { size: 'normal' }) : ''}
               ${t.tag ? `<span class="badge-tag default">${t.tag}</span>` : ''}
               ${t.category_title && t.category_id !== category.id ? `
                 <a href="/forum/category/${t.category_slug}" data-link class="badge-tag subsection" style="text-decoration:none; color: #8E95A5; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);">

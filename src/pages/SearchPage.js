@@ -1,6 +1,7 @@
 // Phoenix RP Forum - Search Page
 import { state } from '../state.js';
 import { ICONS } from '../utils/icons.js';
+import { renderPrefixBadge } from '../utils/prefixes.js';
 
 export function renderSearchPage(data = {}) {
   const { threads = [], pagination = {}, query = {} } = data;
@@ -80,6 +81,7 @@ export function renderSearchPage(data = {}) {
                 <div class="thread-info-col">
                   <div class="thread-title-wrap">
                     <span class="badge-tag default">${t.category_title}</span>
+                    ${t.prefix_title ? renderPrefixBadge(t, { size: 'normal' }) : ''}
                     ${t.tag ? `<span class="badge-tag" style="background:#121722;">${t.tag}</span>` : ''}
                     <a href="/forum/thread/${t.id}" data-link class="thread-title-link">${t.title}</a>
                   </div>

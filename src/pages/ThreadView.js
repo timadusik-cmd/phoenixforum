@@ -5,6 +5,7 @@ import { renderRichEditor } from '../components/RichEditor.js';
 import { renderRoleBadge, renderUserBadges } from '../utils/badges.js';
 import { formatTimeAgo } from '../utils/time.js';
 import { renderLevelShield, renderLevelBadge, renderMiniAwards, getRankTitle } from '../utils/awards.js';
+import { renderPrefixBadge } from '../utils/prefixes.js';
 
 // Rich Markdown & BBCode parser for post content
 export function formatPostContent(rawText) {
@@ -125,6 +126,9 @@ export function renderThreadView(data) {
             ${thread.is_pinned ? `<span class="badge-tag pinned">${ICONS.pin} Закреплено</span>` : ''}
             ${thread.is_locked ? `<span class="badge-tag locked">${ICONS.lock} Закрыто</span>` : ''}
             ${thread.is_solved ? `<span class="badge-tag solved">${ICONS.check} Решено</span>` : ''}
+            <span id="thread-header-prefix-slot">
+              ${thread.prefix_title ? renderPrefixBadge(thread, { size: 'header' }) : ''}
+            </span>
             ${thread.tag ? `<span class="badge-tag default">${thread.tag}</span>` : ''}
           </div>
           <h1 class="thread-view-title">${thread.title}</h1>
@@ -148,6 +152,21 @@ export function renderThreadView(data) {
                 ${ICONS.bell}
                 <span>${isSubscribed ? 'Отслеживается' : 'Отслеживать'}</span>
               </button>
+            ` : ''}
+
+            ${(isMod || (user && user.id === thread.author_id)) ? `
+              <div style="position: relative; display: inline-block;">
+                <button type="button" class="btn-mod-action" id="btn-quick-prefix-toggle" data-thread-id="${thread.id}" data-category-id="${thread.category_id}" title="Сменить префикс темы">
+                  ${ICONS.tag || ICONS.shield}
+                  <span>Префикс</span>
+                </button>
+                <div class="prefix-picker-dropdown" id="thread-prefix-dropdown" style="display: none;">
+                  <div style="font-size: 11px; font-weight: 700; color: #8E95A5; text-transform: uppercase; padding: 4px 8px;">Выберите префикс:</div>
+                  <div id="thread-prefix-dropdown-list" style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="padding: 8px; font-size: 12px; color: #8E95A5;">Загрузка...</div>
+                  </div>
+                </div>
+              </div>
             ` : ''}
 
             ${canEditThread ? `
