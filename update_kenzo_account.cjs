@@ -33,18 +33,11 @@ const res = db.prepare(`
 
 console.log(`Updated user rows: ${res.changes}`);
 
-// 4. Update threads and posts authored by Ivan_Petrov
-const thRes = db.prepare(`UPDATE threads SET author_name = 'KENZO' WHERE author_id = 'u_ivan_petrov' OR author_name = 'Ivan_Petrov'`).run();
-console.log(`Updated threads author_name: ${thRes.changes}`);
-
-const poRes = db.prepare(`UPDATE posts SET author_name = 'KENZO' WHERE author_id = 'u_ivan_petrov' OR author_name = 'Ivan_Petrov'`).run();
-console.log(`Updated posts author_name: ${poRes.changes}`);
-
-// 5. Verify KENZO in database
+// 4. Verify KENZO in database
 const kenzo = db.prepare("SELECT id, username, email, role, role_badge, level, reputation, name_style FROM users WHERE username = 'KENZO'").get();
 console.log('Verified KENZO account:', kenzo);
 
-// 6. Test password verification
+// 5. Test password verification
 const passMatch = bcrypt.compareSync(newPassword, db.prepare("SELECT password_hash FROM users WHERE username = 'KENZO'").get().password_hash);
 console.log('Password check (9559473tima):', passMatch ? 'SUCCESS (MATCH)' : 'FAILED');
 
