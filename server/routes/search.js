@@ -39,6 +39,8 @@ router.get('/', (req, res) => {
       SELECT t.*,
              c.title as category_title, c.slug as category_slug,
              u.id as author_id, u.username as author_name, u.avatar as author_avatar,
+             u.avatar_decoration as author_avatar_decoration,
+             u.name_style as author_name_style,
              u.role_color as author_color, u.role_badge as author_badge,
              pfx.id as prefix_id, pfx.title as prefix_title, pfx.text_color as prefix_text_color,
              pfx.bg_color as prefix_bg_color, pfx.border_color as prefix_border_color,

@@ -1,6 +1,7 @@
 import { state } from '../state.js';
 import { ICONS, getIcon } from '../utils/icons.js';
 import { formatTimeAgo } from '../utils/time.js';
+import { renderStyledUsername } from '../utils/nameStyles.js';
 
 export function renderHeroBanner() {
   return `
@@ -41,7 +42,7 @@ function renderSectionCard(cat) {
             ${cat.lastMessage.threadTitle}
           </a>
           <div class="last-msg-meta">
-            <span class="last-msg-author">${cat.lastMessage.authorName}</span>
+            <span class="last-msg-author">${renderStyledUsername(cat.lastMessage.authorName, cat.lastMessage.authorNameStyle)}</span>
             <span class="meta-dot">•</span>
             <span class="last-msg-time">${dateStr}</span>
           </div>

@@ -2,6 +2,7 @@
 import { state } from '../state.js';
 import { ICONS, getIcon } from '../utils/icons.js';
 import { renderPrefixBadge } from '../utils/prefixes.js';
+import { renderStyledUsername } from '../utils/nameStyles.js';
 
 export function renderCategoryView(data) {
   const { category, parentCategory, subSections, threads, pagination, currentFilter = 'all' } = data;
@@ -42,7 +43,7 @@ export function renderCategoryView(data) {
               <a href="/forum/thread/${t.id}" data-link class="thread-title-link">${t.title}</a>
             </div>
             <div class="thread-meta-wrap">
-              <span class="thread-author" style="color: ${t.author_color || '#FF8A00'}; font-weight: 600;">${t.author_name}</span>
+              <span class="thread-author" style="color: ${t.author_color || '#FF8A00'}; font-weight: 600;">${renderStyledUsername(t.author_name, t.author_name_style)}</span>
               <span class="meta-dot">•</span>
               <span class="thread-date">${createdDate}</span>
               ${t.last_reply_user ? `

@@ -2,6 +2,7 @@
 import { state } from '../state.js';
 import { ICONS } from '../utils/icons.js';
 import { router } from '../router.js';
+import { renderStyledUsername } from '../utils/nameStyles.js';
 
 export function renderHeader() {
   const isForumActive = window.location.pathname.startsWith('/forum') || window.location.pathname === '/';
@@ -118,13 +119,13 @@ export function renderHeader() {
                 <img src="${state.user.avatar || '/assets/avatar_ivan.jpg'}" alt="${state.user.username}" class="user-chip-avatar" />
                 ${state.user.avatar_decoration ? `<img src="${state.user.avatar_decoration}" class="avatar-decoration" alt="" />` : ''}
               </div>
-              <span class="user-chip-name">${state.user.username}</span>
+              <span class="user-chip-name">${renderStyledUsername(state.user.username, state.user.name_style)}</span>
               <span class="user-chip-arrow">${ICONS.chevronDown}</span>
             </button>
 
             <div class="user-menu-dropdown" id="header-user-menu">
               <div class="user-menu-header">
-                <div style="font-weight: 700; color: #FFF; font-size: 14px;">${state.user.username}</div>
+                <div style="font-weight: 700; color: #FFF; font-size: 14px;">${renderStyledUsername(state.user.username, state.user.name_style)}</div>
                 <div style="font-size: 11px; color: #8E95A5; font-weight: 600;">${state.user.fraction || 'Гражданский'} • Lvl ${state.user.level || 1}</div>
               </div>
 

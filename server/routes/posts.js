@@ -91,6 +91,8 @@ router.post('/', requireAuth, (req, res) => {
     const createdPost = db.prepare(`
       SELECT p.*,
              u.id as author_id, u.username as author_name, u.avatar as author_avatar,
+             u.avatar_decoration as author_avatar_decoration,
+             u.name_style as author_name_style,
              u.role as author_role, u.role_badge as author_badge, u.role_color as author_color,
              u.level as author_level, u.reputation as author_reputation, u.fraction as author_fraction,
              u.bio as author_bio, u.signature as author_signature, u.created_at as author_joined,

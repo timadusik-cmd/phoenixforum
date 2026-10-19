@@ -25,6 +25,7 @@ import { renderAdminPanel } from './pages/AdminPanel.js';
 import { renderMessagesPage } from './pages/MessagesPage.js';
 import { renderRoleBadge, renderUserBadges, registerCustomBadges, BADGE_ICONS } from './utils/badges.js';
 import { renderPrefixBadge } from './utils/prefixes.js';
+import { renderStyledUsername, getNicknameStyle } from './utils/nameStyles.js';
 
 import { renderFooter } from './components/Footer.js';
 
@@ -317,6 +318,7 @@ router.addRoute('/admin', async (params, query) => {
     let customBadges = [];
     let auditLogs = [];
     let decorationsData = null;
+    let nicknamesData = null;
     let prefixes = [];
     let servers = [];
 
@@ -348,6 +350,23 @@ router.addRoute('/admin', async (params, query) => {
         decorationsData = await api.admin.getDecorations();
       } catch (e) {
         console.error('Error fetching decorations data:', e);
+      }
+    } else if (tab === 'nicknames') {
+      const isFounder = state.user && (
+        state.user.username === 'KENZO' ||
+        state.user.username === 'Ivan_Petrov' ||
+        state.user.id === 'u_ivan_petrov' ||
+        state.user.role === 'superadmin'
+      );
+      if (!isFounder) {
+        showToast('Доступ к управлению никами разрешён только основателю проекта (KENZO).');
+        router.navigate('/admin?tab=overview');
+        return;
+      }
+      try {
+        nicknamesData = await api.admin.getNicknames();
+      } catch (e) {
+        console.error('Error fetching nicknames data:', e);
       }
     } else if (tab === 'prefixes') {
       const pfxRes = await api.admin.getPrefixes().catch(() => ({ prefixes: [] }));
@@ -389,6 +408,7 @@ router.addRoute('/admin', async (params, query) => {
       customBadges,
       auditLogs,
       decorationsData,
+      nicknamesData,
       prefixes,
       servers
     }));
@@ -1600,6 +1620,200 @@ function attachGlobalEvents() {
         router.resolve();
       } catch (err) {
         alert(err.message || 'Ошибка снятия украшения');
+      }
+    };
+  });
+
+  // -------------------------------------------------------------
+  // Nicknames & Custom Styles Management (Exclusive to KENZO)
+  // -------------------------------------------------------------
+  const nickUserSelect = document.getElementById('nick-user-select');
+  const nickUsernameInput = document.getElementById('nick-username-input');
+  const btnSubmitSaveNick = document.getElementById('btn-submit-save-nick');
+  const btnResetNickStyle = document.getElementById('btn-reset-nick-style');
+
+  let currentSelectedStyle = 'default';
+
+  function updateLiveNickPreview() {
+    if (!nickUserSelect) return;
+    const selectedUserOpt = nickUserSelect.selectedOptions?.[0];
+    const username = (nickUsernameInput?.value || '').trim() || selectedUserOpt?.getAttribute('data-username') || 'Игрок';
+    const avatar = selectedUserOpt?.getAttribute('data-avatar') || '/assets/avatar_ivan.jpg';
+    const badge = selectedUserOpt?.getAttribute('data-badge') || 'Игрок';
+
+    const av1 = document.getElementById('nick-preview-avatar-1');
+    const av2 = document.getElementById('nick-preview-avatar-2');
+    const av3 = document.getElementById('nick-preview-avatar-3');
+    if (av1) av1.src = avatar;
+    if (av2) av2.src = avatar;
+    if (av3) av3.src = avatar;
+
+    const b1 = document.getElementById('nick-preview-badge-1');
+    const b3 = document.getElementById('nick-preview-badge-3');
+    if (b1) b1.textContent = badge;
+    if (b3) b3.textContent = badge;
+
+    const n1 = document.getElementById('nick-preview-name-1');
+    const n2 = document.getElementById('nick-preview-name-2');
+    const n3 = document.getElementById('nick-preview-name-3');
+    const styledHtml = renderStyledUsername(username, currentSelectedStyle);
+    if (n1) n1.innerHTML = styledHtml;
+    if (n2) n2.innerHTML = styledHtml;
+    if (n3) n3.innerHTML = styledHtml;
+  }
+
+  if (nickUserSelect && nickUsernameInput) {
+    const initialOpt = nickUserSelect.selectedOptions?.[0];
+    if (initialOpt) {
+      currentSelectedStyle = initialOpt.getAttribute('data-current-style') || 'default';
+      nickUsernameInput.value = initialOpt.getAttribute('data-username') || '';
+    }
+
+    nickUserSelect.onchange = () => {
+      const opt = nickUserSelect.selectedOptions?.[0];
+      if (opt) {
+        nickUsernameInput.value = opt.getAttribute('data-username') || '';
+        currentSelectedStyle = opt.getAttribute('data-current-style') || 'default';
+        document.querySelectorAll('.nick-style-card').forEach(c => {
+          c.classList.toggle('selected', c.getAttribute('data-style-key') === currentSelectedStyle);
+        });
+        updateLiveNickPreview();
+      }
+    };
+
+    nickUsernameInput.oninput = () => {
+      updateLiveNickPreview();
+    };
+
+    document.querySelectorAll('.nick-style-card').forEach(card => {
+      card.onclick = () => {
+        document.querySelectorAll('.nick-style-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        currentSelectedStyle = card.getAttribute('data-style-key') || 'default';
+        updateLiveNickPreview();
+      };
+    });
+
+    if (btnSubmitSaveNick) {
+      btnSubmitSaveNick.onclick = async () => {
+        const userId = nickUserSelect.value;
+        const newNick = (nickUsernameInput.value || '').trim();
+
+        if (!userId) {
+          showToast('Выберите пользователя');
+          return;
+        }
+        if (!newNick) {
+          showToast('Введите никнейм');
+          return;
+        }
+
+        const originalHtml = btnSubmitSaveNick.innerHTML;
+        btnSubmitSaveNick.disabled = true;
+        btnSubmitSaveNick.innerText = 'Сохранение...';
+
+        try {
+          const res = await api.admin.updateUserNickname(userId, {
+            username: newNick,
+            name_style: currentSelectedStyle
+          });
+          showToast(res.message || 'Никнейм и стиль успешно сохранены!');
+          playSound('success');
+
+          if (state.user && state.user.id === userId) {
+            state.user.username = newNick;
+            state.user.character_name = newNick;
+            state.user.name_style = currentSelectedStyle;
+            authStorage.saveUser(state.user);
+            notifyStateChange();
+          }
+
+          router.resolve();
+        } catch (err) {
+          alert(err.message || 'Ошибка сохранения никнейма');
+          btnSubmitSaveNick.disabled = false;
+          btnSubmitSaveNick.innerHTML = originalHtml;
+        }
+      };
+    }
+
+    if (btnResetNickStyle) {
+      btnResetNickStyle.onclick = async () => {
+        const userId = nickUserSelect.value;
+        const opt = nickUserSelect.selectedOptions?.[0];
+        const uname = opt?.getAttribute('data-username') || 'пользователя';
+
+        if (!userId) return;
+        if (!confirm(`Сбросить спецстиль ника игрока «${uname}» на стандартный?`)) return;
+
+        try {
+          const res = await api.admin.resetUserNicknameStyle(userId);
+          showToast(res.message || 'Стиль сброшен');
+          playSound('click');
+
+          if (state.user && state.user.id === userId) {
+            state.user.name_style = 'default';
+            authStorage.saveUser(state.user);
+            notifyStateChange();
+          }
+
+          router.resolve();
+        } catch (err) {
+          alert(err.message || 'Ошибка сброса стиля');
+        }
+      };
+    }
+  }
+
+  // Quick Edit user in styled users table
+  document.querySelectorAll('.btn-quick-select-nick').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const uid = btn.getAttribute('data-user-id');
+      const style = btn.getAttribute('data-style') || 'default';
+      const username = btn.getAttribute('data-username') || '';
+
+      if (nickUserSelect) {
+        nickUserSelect.value = uid;
+      }
+      if (nickUsernameInput) {
+        nickUsernameInput.value = username;
+      }
+      currentSelectedStyle = style;
+      document.querySelectorAll('.nick-style-card').forEach(c => {
+        c.classList.toggle('selected', c.getAttribute('data-style-key') === style);
+      });
+      updateLiveNickPreview();
+
+      const formPanel = document.querySelector('.nick-form-panel');
+      if (formPanel) {
+        formPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        formPanel.style.boxShadow = '0 0 25px rgba(255, 56, 77, 0.4)';
+        setTimeout(() => { if (formPanel) formPanel.style.boxShadow = ''; }, 1500);
+      }
+    };
+  });
+
+  // Quick Remove style in styled users table
+  document.querySelectorAll('.btn-quick-remove-nick-style').forEach(btn => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      const uid = btn.getAttribute('data-user-id');
+      const username = btn.getAttribute('data-username') || 'пользователя';
+
+      if (!confirm(`Сбросить спецстиль ника игрока «${username}» на стандартный?`)) return;
+
+      try {
+        const res = await api.admin.resetUserNicknameStyle(uid);
+        showToast(res.message || 'Стиль сброшен');
+        if (state.user && state.user.id === uid) {
+          state.user.name_style = 'default';
+          authStorage.saveUser(state.user);
+          notifyStateChange();
+        }
+        router.resolve();
+      } catch (err) {
+        alert(err.message || 'Ошибка сброса стиля');
       }
     };
   });

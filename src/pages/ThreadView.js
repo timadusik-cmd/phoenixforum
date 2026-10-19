@@ -6,6 +6,7 @@ import { renderRoleBadge, renderUserBadges } from '../utils/badges.js';
 import { formatTimeAgo } from '../utils/time.js';
 import { renderLevelShield, renderLevelBadge, renderMiniAwards, getRankTitle } from '../utils/awards.js';
 import { renderPrefixBadge } from '../utils/prefixes.js';
+import { renderStyledUsername } from '../utils/nameStyles.js';
 
 // Rich Markdown & BBCode parser for post content
 export function formatPostContent(rawText) {
@@ -136,7 +137,7 @@ export function renderThreadView(data) {
 
         <div class="thread-header-meta-row">
           <div class="thread-meta-left">
-            <span>Автор: <strong>${thread.author_name}</strong></span>
+            <span>Автор: <a href="/forum/member/${thread.author_id}" data-link><strong>${renderStyledUsername(thread.author_name, thread.author_name_style)}</strong></a></span>
             <span class="meta-dot">•</span>
             <span>Создана: <strong>${formatTimeAgo(thread.created_at)}</strong></span>
             <span class="meta-dot">•</span>
@@ -213,7 +214,7 @@ export function renderThreadView(data) {
                   ${post.author_avatar_decoration ? `<img src="${post.author_avatar_decoration}" class="avatar-decoration post-decoration" alt="" />` : ''}
                 </a>
                 <a href="/forum/member/${post.author_id}" data-link class="post-author-name" style="color: ${post.author_color || '#FF8A00'};">
-                  ${post.author_name}
+                  ${renderStyledUsername(post.author_name, post.author_name_style)}
                 </a>
                 <div class="post-author-badge-wrap" style="margin: 4px 0 6px 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px;">
                   ${renderUserBadges(post, { size: 'sidebar' })}

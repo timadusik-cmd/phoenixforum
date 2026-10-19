@@ -80,7 +80,8 @@ router.get('/', (req, res) => {
     const getLastMsg = db.prepare(`
       SELECT p.id, p.created_at, p.content, t.id as thread_id, t.title as thread_title,
              u.id as author_id, u.username as author_name, u.avatar as author_avatar,
-             u.avatar_decoration as author_avatar_decoration
+             u.avatar_decoration as author_avatar_decoration,
+             u.name_style as author_name_style
       FROM posts p
       JOIN threads t ON p.thread_id = t.id
       JOIN users u ON p.author_id = u.id
@@ -100,6 +101,7 @@ router.get('/', (req, res) => {
           authorName: lastMsg.author_name,
           authorAvatar: lastMsg.author_avatar,
           authorAvatarDecoration: lastMsg.author_avatar_decoration,
+          authorNameStyle: lastMsg.author_name_style,
           createdAt: lastMsg.created_at
         } : null
       };
@@ -234,6 +236,8 @@ router.get('/:slug', (req, res) => {
       SELECT t.*,
              c.title as category_title, c.slug as category_slug,
              u.id as author_id, u.username as author_name, u.avatar as author_avatar, 
+             u.avatar_decoration as author_avatar_decoration,
+             u.name_style as author_name_style,
              u.role as author_role, u.role_badge as author_badge, u.role_color as author_color,
              pfx.id as prefix_id, pfx.title as prefix_title, pfx.text_color as prefix_text_color,
              pfx.bg_color as prefix_bg_color, pfx.border_color as prefix_border_color,

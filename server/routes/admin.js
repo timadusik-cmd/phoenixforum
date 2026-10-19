@@ -834,30 +834,34 @@ router.delete('/users/:id/badges/:badge_key', requireRole('admin'), (req, res) =
 // ==============================================================
 
 function requireIvanPetrov(req, res, next) {
-  const isIvan = req.user && (
+  const isFounder = req.user && (
+    req.user.username === 'KENZO' ||
     req.user.username === 'Ivan_Petrov' || 
-    req.user.id === 'u_ivan_petrov'
+    req.user.id === 'u_ivan_petrov' ||
+    req.user.role === 'superadmin'
   );
-  if (!isIvan) {
+  if (!isFounder) {
     return res.status(403).json({
-      error: 'Доступ к управлению украшениями аватарок разрешён только создателю проекта Ivan_Petrov.'
+      error: 'Доступ разрешён только создателю проекта KENZO.'
     });
   }
   next();
 }
 
+const requireFounder = requireIvanPetrov;
+
 // GET all decorations and users with decorations
-router.get('/decorations', requireIvanPetrov, (req, res) => {
+router.get('/decorations', requireFounder, (req, res) => {
   try {
     const usersWithDecorations = db.prepare(`
-      SELECT id, username, character_name, avatar, avatar_decoration, role, role_badge, role_color, level
+      SELECT id, username, character_name, avatar, avatar_decoration, name_style, role, role_badge, role_color, level
       FROM users
       WHERE avatar_decoration IS NOT NULL AND avatar_decoration != ''
       ORDER BY username ASC
     `).all();
 
     const allUsers = db.prepare(`
-      SELECT id, username, character_name, avatar, avatar_decoration, role, role_badge, role_color, level
+      SELECT id, username, character_name, avatar, avatar_decoration, name_style, role, role_badge, role_color, level
       FROM users
       ORDER BY 
         CASE role 
@@ -1358,6 +1362,156 @@ router.delete('/servers/:id', requireRole('admin'), (req, res) => {
   } catch (err) {
     console.error('Error deleting server:', err);
     res.status(500).json({ error: 'Ошибка при удалении сервера' });
+  }
+});
+
+// ==============================================================
+// 10. NICKNAME & CUSTOM STYLES MANAGEMENT (EXCLUSIVE TO FOUNDER / KENZO)
+// ==============================================================
+
+// GET all users with custom styles & all users for selector
+router.get('/nicknames', requireFounder, (req, res) => {
+  try {
+    const styledUsers = db.prepare(`
+      SELECT id, username, character_name, avatar, avatar_decoration, name_style, role, role_badge, role_color, level
+      FROM users
+      WHERE name_style IS NOT NULL AND name_style != '' AND name_style != 'default'
+      ORDER BY username ASC
+    `).all();
+
+    const allUsers = db.prepare(`
+      SELECT id, username, character_name, avatar, avatar_decoration, name_style, role, role_badge, role_color, level
+      FROM users
+      ORDER BY 
+        CASE role 
+          WHEN 'superadmin' THEN 1 
+          WHEN 'admin' THEN 2 
+          WHEN 'moderator' THEN 3 
+          ELSE 4 
+        END ASC,
+        username ASC
+    `).all();
+
+    res.json({ styledUsers, allUsers });
+  } catch (err) {
+    console.error('Error fetching nicknames info:', err);
+    res.status(500).json({ error: 'Ошибка загрузки данных никнеймов.' });
+  }
+});
+
+// PUT update user's nickname and/or style
+router.put('/users/:id/nickname', requireFounder, (req, res) => {
+  try {
+    const { username, name_style } = req.body;
+    const targetUser = db.prepare('SELECT id, username, character_name, name_style FROM users WHERE id = ?').get(req.params.id);
+    if (!targetUser) {
+      return res.status(404).json({ error: 'Пользователь не найден.' });
+    }
+
+    let newUsername = targetUser.username;
+    if (username !== undefined && username !== null) {
+      const trimmed = String(username).trim();
+      if (!trimmed) {
+        return res.status(400).json({ error: 'Никнейм не может быть пустым.' });
+      }
+      if (trimmed.length < 2 || trimmed.length > 32) {
+        return res.status(400).json({ error: 'Длина никнейма должна быть от 2 до 32 символов.' });
+      }
+      // Check if username is already taken by another user
+      if (trimmed.toLowerCase() !== targetUser.username.toLowerCase()) {
+        const existing = db.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id != ?').get(trimmed, targetUser.id);
+        if (existing) {
+          return res.status(400).json({ error: `Никнейм «${trimmed}» уже занят другим игроком.` });
+        }
+      }
+      newUsername = trimmed;
+    }
+
+    const newStyle = (name_style !== undefined && name_style !== null) ? String(name_style).trim() : (targetUser.name_style || 'default');
+
+    db.prepare(`
+      UPDATE users
+      SET username = ?,
+          name_style = ?,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(newUsername, newStyle, targetUser.id);
+
+    // Audit log
+    try {
+      db.prepare(`
+        INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+        VALUES (?, ?, 'update_nickname_style', 'user', ?, ?, ?)
+      `).run(
+        'log_' + Date.now(),
+        req.user.id,
+        targetUser.id,
+        `Основатель KENZO обновил данные игрока: Ник [${targetUser.username} -> ${newUsername}], Стиль [${targetUser.name_style || 'default'} -> ${newStyle}]`,
+        req.ip || ''
+      );
+    } catch (auditErr) {
+      console.warn('Could not insert audit log:', auditErr.message);
+    }
+
+    // Optional notification to target user
+    try {
+      if (targetUser.id !== req.user.id) {
+        db.prepare(`
+          INSERT INTO notifications (id, user_id, type, title, content, link, is_read, created_at)
+          VALUES (?, ?, 'founder_action', ?, ?, ?, 0, CURRENT_TIMESTAMP)
+        `).run(
+          'notif_' + Date.now(),
+          targetUser.id,
+          'Особое изменение аккаунта от Основателя (KENZO)',
+          `Ваш никнейм или визуальный стиль оформления был обновлен создателем проекта. Новый ник: ${newUsername}`,
+          `/forum/member/${targetUser.id}`
+        );
+      }
+    } catch (notifErr) {
+      console.warn('Could not insert notification:', notifErr.message);
+    }
+
+    res.json({
+      message: `Никнейм и стиль пользователя «${newUsername}» успешно сохранены!`,
+      user: {
+        id: targetUser.id,
+        username: newUsername,
+        name_style: newStyle
+      }
+    });
+  } catch (err) {
+    console.error('Error updating user nickname & style:', err);
+    res.status(500).json({ error: 'Ошибка при сохранении: ' + (err.message || 'неизвестная ошибка') });
+  }
+});
+
+// DELETE reset user's nickname style to default
+router.delete('/users/:id/nickname-style', requireFounder, (req, res) => {
+  try {
+    const targetUser = db.prepare('SELECT id, username FROM users WHERE id = ?').get(req.params.id);
+    if (!targetUser) {
+      return res.status(404).json({ error: 'Пользователь не найден.' });
+    }
+
+    db.prepare("UPDATE users SET name_style = 'default', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(targetUser.id);
+
+    try {
+      db.prepare(`
+        INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+        VALUES (?, ?, 'reset_nickname_style', 'user', ?, ?, ?)
+      `).run(
+        'log_' + Date.now(),
+        req.user.id,
+        targetUser.id,
+        `Основатель KENZO сбросил стиль ника игрока ${targetUser.username} на стандартный`,
+        req.ip || ''
+      );
+    } catch {}
+
+    res.json({ message: `Стиль ника пользователя «${targetUser.username}» сброшен на стандартный.` });
+  } catch (err) {
+    console.error('Error resetting nickname style:', err);
+    res.status(500).json({ error: 'Ошибка при сбросе стиля.' });
   }
 });
 

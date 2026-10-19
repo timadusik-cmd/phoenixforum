@@ -12,6 +12,7 @@ router.get('/recent', (req, res) => {
     const recent = db.prepare(`
       SELECT t.id, t.title, t.tag, t.created_at, t.views_count,
              u.id as author_id, u.username as author_name, u.avatar as author_avatar,
+             u.name_style as author_name_style,
              c.title as category_title, c.slug as category_slug,
              pfx.id as prefix_id, pfx.title as prefix_title, pfx.text_color as prefix_text_color,
              pfx.bg_color as prefix_bg_color, pfx.border_color as prefix_border_color,
@@ -44,6 +45,7 @@ router.get('/:id', optionalAuth, (req, res) => {
       SELECT t.*, c.title as category_title, c.slug as category_slug,
              u.id as author_id, u.username as author_name, u.avatar as author_avatar,
              u.avatar_decoration as author_avatar_decoration,
+             u.name_style as author_name_style,
              u.role as author_role, u.role_badge as author_badge, u.role_color as author_color,
              u.level as author_level, u.reputation as author_reputation, u.fraction as author_fraction,
              u.created_at as author_joined,
@@ -66,6 +68,7 @@ router.get('/:id', optionalAuth, (req, res) => {
       SELECT p.*,
              u.id as author_id, u.username as author_name, u.avatar as author_avatar,
              u.avatar_decoration as author_avatar_decoration,
+             u.name_style as author_name_style,
              u.role as author_role, u.role_badge as author_badge, u.role_color as author_color,
              u.level as author_level, u.reputation as author_reputation, u.fraction as author_fraction,
              u.bio as author_bio, u.signature as author_signature, u.created_at as author_joined,

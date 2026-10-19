@@ -10516,5 +10516,367 @@ input, textarea, select {
   gap: 8px;
 }
 
+/* ==========================================================================
+   EXCLUSIVE NICKNAME STYLES & ANIMATIONS (GTA RP & NITRO / PREMIUM)
+   ========================================================================== */
+.nick-wrap {
+  display: inline-block;
+  vertical-align: middle;
+}
 
+.styled-nick {
+  display: inline-block;
+  vertical-align: middle;
+  font-weight: 700;
+  letter-spacing: 0.25px;
+  padding: 0 2px;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transition: filter 0.25s ease, transform 0.2s ease;
+}
 
+.styled-nick:hover {
+  filter: brightness(1.2) drop-shadow(0 0 10px rgba(255, 255, 255, 0.45));
+}
+
+/* 1. Phoenix Fire (Blazing magma aura) */
+.styled-nick.nick-style-phoenix_fire {
+  background-image: linear-gradient(110deg, #FF1E38 0%, #FF6000 25%, #FFAA00 50%, #FF2647 75%, #FF8000 100%);
+  background-size: 250% auto;
+  animation: nickPhoenixFire 4.5s linear infinite;
+  filter: drop-shadow(0 0 6px rgba(255, 60, 0, 0.45));
+}
+@keyframes nickPhoenixFire {
+  0% { background-position: 0% center; }
+  100% { background-position: 250% center; }
+}
+
+/* 2. Cyber Neon (Electric cyan-magenta cyberpunk laser) */
+.styled-nick.nick-style-cyber_neon {
+  background-image: linear-gradient(110deg, #00F0FF 0%, #7000FF 30%, #FF00E5 55%, #00FFC2 80%, #00F0FF 100%);
+  background-size: 250% auto;
+  animation: nickCyberNeon 4s ease infinite;
+  filter: drop-shadow(0 0 7px rgba(0, 240, 255, 0.5));
+}
+@keyframes nickCyberNeon {
+  0%, 100% {
+    background-position: 0% center;
+    filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.45));
+  }
+  50% {
+    background-position: 100% center;
+    filter: drop-shadow(0 0 10px rgba(157, 0, 255, 0.6));
+  }
+}
+
+/* 3. Chrome Shimmer (Liquid platinum sweep) */
+.styled-nick.nick-style-chrome_shimmer {
+  background-image: linear-gradient(115deg, #CBD5E1 0%, #FFFFFF 20%, #64748B 40%, #FFFFFF 60%, #E2E8F0 80%, #94A3B8 100%);
+  background-size: 200% auto;
+  animation: nickChromeSweep 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.45));
+}
+@keyframes nickChromeSweep {
+  0% { background-position: -150% center; }
+  100% { background-position: 150% center; }
+}
+
+/* 4. Royal Gold (24k polished gold luster) */
+.styled-nick.nick-style-royal_gold {
+  background-image: linear-gradient(110deg, #F59E0B 0%, #FDE047 25%, #FFFBEB 45%, #D97706 70%, #F59E0B 100%);
+  background-size: 240% auto;
+  animation: nickRoyalGold 4s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.5));
+}
+@keyframes nickRoyalGold {
+  0% { background-position: 0% center; filter: drop-shadow(0 0 5px rgba(245, 158, 11, 0.4)); }
+  100% { background-position: 100% center; filter: drop-shadow(0 0 9px rgba(253, 224, 71, 0.65)); }
+}
+
+/* 5. Dark Amethyst (Mystic ultraviolet void) */
+.styled-nick.nick-style-amethyst {
+  background-image: linear-gradient(110deg, #C084FC 0%, #7E22CE 35%, #EC4899 65%, #A855F7 100%);
+  background-size: 220% auto;
+  animation: nickAmethyst 3.8s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 7px rgba(192, 132, 252, 0.5));
+}
+@keyframes nickAmethyst {
+  0% { background-position: 0% center; filter: drop-shadow(0 0 6px rgba(192, 132, 252, 0.45)); }
+  100% { background-position: 100% center; filter: drop-shadow(0 0 10px rgba(236, 72, 153, 0.6)); }
+}
+
+/* 6. Emerald Pulse (Bio-luminescent emerald breath) */
+.styled-nick.nick-style-emerald_pulse {
+  background-image: linear-gradient(110deg, #10B981 0%, #00FF9D 30%, #047857 60%, #34D399 85%, #10B981 100%);
+  background-size: 240% auto;
+  animation: nickEmerald 4s ease-in-out infinite;
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.45));
+}
+@keyframes nickEmerald {
+  0%, 100% { background-position: 0% center; filter: drop-shadow(0 0 5px rgba(16, 185, 129, 0.4)); }
+  50% { background-position: 100% center; filter: drop-shadow(0 0 10px rgba(0, 255, 157, 0.65)); }
+}
+
+/* 7. Blood Storm (Crimson dark reaper) */
+.styled-nick.nick-style-blood_storm {
+  background-image: linear-gradient(110deg, #EF4444 0%, #7F1D1D 35%, #DC2626 65%, #F87171 85%, #991B1B 100%);
+  background-size: 220% auto;
+  animation: nickBloodSurge 3.6s ease-in-out infinite;
+  filter: drop-shadow(0 0 7px rgba(239, 68, 68, 0.55));
+}
+@keyframes nickBloodSurge {
+  0%, 100% { background-position: 0% center; filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.5)); }
+  50% { background-position: 100% center; filter: drop-shadow(0 0 11px rgba(220, 38, 38, 0.8)); }
+}
+
+/* 8. Cosmic Nebula (Celestial starlight galaxy aurora) */
+.styled-nick.nick-style-cosmic_nebula {
+  background-image: linear-gradient(120deg, #818CF8 0%, #C084FC 25%, #F472B6 50%, #38BDF8 75%, #818CF8 100%);
+  background-size: 300% auto;
+  animation: nickCosmicDrift 6s linear infinite;
+  filter: drop-shadow(0 0 7px rgba(192, 132, 252, 0.5));
+}
+@keyframes nickCosmicDrift {
+  0% { background-position: 0% center; }
+  100% { background-position: 300% center; }
+}
+
+/* 9. Cyberpunk Glitch (High-tech chromatic RGB split) */
+.styled-nick.nick-style-glitch_pulse {
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  color: #00F5FF;
+  -webkit-text-fill-color: #00F5FF;
+  text-shadow: 1.5px 0 0 rgba(255, 0, 80, 0.75), -1.5px 0 0 rgba(0, 240, 255, 0.75);
+  animation: nickGlitchFlicker 3.2s steps(2, start) infinite;
+}
+@keyframes nickGlitchFlicker {
+  0%, 90%, 100% {
+    text-shadow: 1px 0 0 rgba(255, 0, 80, 0.7), -1px 0 0 rgba(0, 240, 255, 0.7);
+    transform: none;
+  }
+  92% {
+    text-shadow: -2.5px 0 0 #FF0055, 2.5px 0 0 #00FFCC;
+    transform: skewX(-2deg);
+  }
+  94% {
+    text-shadow: 2px 0 0 #FF0055, -2px 0 0 #00FFCC;
+    transform: skewX(2deg);
+  }
+  96% {
+    text-shadow: 1px 0 0 rgba(255, 0, 80, 0.7), -1px 0 0 rgba(0, 240, 255, 0.7);
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   ADMIN NICKNAME STUDIO & STYLES SELECTOR
+   ========================================================================== */
+.nick-admin-container {
+  padding: 24px;
+  background: #0E1017;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.nick-intro-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding-bottom: 20px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.nick-intro-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 56, 77, 0.15), rgba(255, 138, 0, 0.15));
+  border: 1px solid rgba(255, 56, 77, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.nick-studio-grid {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+@media (max-width: 992px) {
+  .nick-studio-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.nick-form-panel {
+  background: #12141F;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+
+.nick-preview-panel {
+  background: #12141F;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.nick-panel-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #FFF;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Style cards grid */
+.nick-styles-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+
+@media (max-width: 600px) {
+  .nick-styles-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.nick-style-card {
+  background: #171A27;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  text-align: left;
+}
+
+.nick-style-card:hover {
+  border-color: rgba(255, 56, 77, 0.4);
+  background: #1C2030;
+  transform: translateY(-2px);
+}
+
+.nick-style-card.selected {
+  border-color: #FF384D;
+  background: linear-gradient(135deg, rgba(255, 56, 77, 0.12), rgba(255, 138, 0, 0.08));
+  box-shadow: 0 0 16px rgba(255, 56, 77, 0.25);
+}
+
+.nick-style-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nick-style-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #FFF;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nick-style-card-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #94A3B8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.nick-style-card.selected .nick-style-card-badge {
+  background: #FF384D;
+  color: #FFF;
+}
+
+.nick-style-card-preview {
+  font-size: 15px;
+  font-weight: 700;
+  padding: 6px 0;
+}
+
+.nick-style-card-desc {
+  font-size: 11px;
+  color: #8E95A5;
+  line-height: 1.35;
+}
+
+/* Interactive Preview Box */
+.preview-mockup-box {
+  background: #171A27;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.preview-mockup-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  color: #8E95A5;
+  margin-bottom: 10px;
+}
+
+.preview-mockup-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Styled Users Table */
+.styled-users-table-wrap {
+  margin-top: 16px;
+  overflow-x: auto;
+}
+
+.styled-users-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.styled-users-table th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #8E95A5;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.styled-users-table td {
+  padding: 12px 14px;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.styled-users-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}

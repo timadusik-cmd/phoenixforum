@@ -3,6 +3,7 @@ import { ICONS } from '../utils/icons.js';
 import { renderRoleBadge, renderUserBadges, getBadgeConfig, BADGE_ICONS } from '../utils/badges.js';
 import { formatTimeAgo } from '../utils/time.js';
 import { renderLevelShield, getLevelProgress } from '../utils/awards.js';
+import { renderStyledUsername } from '../utils/nameStyles.js';
 
 export function renderSidebarRight() {
   const user = state.user;
@@ -24,7 +25,7 @@ export function renderSidebarRight() {
           </div>
           <div class="profile-user-info">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
-              <div class="profile-username" title="${user.username}">${user.username}</div>
+              <div class="profile-username" title="${user.username}">${renderStyledUsername(user.username, user.name_style)}</div>
               ${renderLevelShield(progress.level, { size: 28 })}
             </div>
             <div class="profile-meta-row">
@@ -231,7 +232,7 @@ export function renderSidebarRight() {
           </div>
           <div class="staff-details">
             <div class="staff-nick-row">
-              <span class="staff-nick" style="color: ${roleColor};">${displayName}</span>
+              <span class="staff-nick" style="color: ${roleColor};">${renderStyledUsername(displayName, s.name_style)}</span>
               ${extraCount > 0 ? `<span class="staff-pill-more" title="+${extraCount}: ${extraTitles}">+${extraCount}</span>` : ''}
             </div>
             <div class="staff-role-pill" style="--pill-color: ${roleColor};">
@@ -267,7 +268,7 @@ export function renderSidebarRight() {
           return `
             <a href="/members/${encodeURIComponent(u.username)}" data-link class="online-user-tag" style="--user-color: ${roleColor};" title="${u.username} (${u.role_badge || 'Игрок'})">
               <span class="user-tag-dot" style="background: ${roleColor}; box-shadow: 0 0 6px ${roleColor};"></span>
-              <span class="user-tag-name" style="color: ${roleColor};">${u.username}</span>
+              <span class="user-tag-name" style="color: ${roleColor};">${renderStyledUsername(u.username, u.name_style)}</span>
             </a>
           `;
         }).join('')}

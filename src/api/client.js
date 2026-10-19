@@ -222,6 +222,11 @@ export const api = {
     },
     removeUserDecoration: (userId) => request(`/api/admin/users/${encodeURIComponent(userId)}/decoration`, { method: 'DELETE' }),
 
+    // Nicknames & Styles Management (Exclusive to KENZO)
+    getNicknames: () => request('/api/admin/nicknames'),
+    updateUserNickname: (userId, data) => request(`/api/admin/users/${encodeURIComponent(userId)}/nickname`, { method: 'PUT', body: data }),
+    resetUserNicknameStyle: (userId) => request(`/api/admin/users/${encodeURIComponent(userId)}/nickname-style`, { method: 'DELETE' }),
+
     // Topic Prefixes Management
     getPrefixes: () => request('/api/admin/prefixes'),
     createPrefix: (data) => request('/api/admin/prefixes', { method: 'POST', body: data }),

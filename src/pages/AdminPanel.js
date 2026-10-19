@@ -4,6 +4,7 @@ import { ICONS, getIcon } from '../utils/icons.js';
 import { BADGES, BADGE_ICONS, renderRoleBadge, renderUserBadges } from '../utils/badges.js';
 import { DECORATIONS, DECORATION_CATEGORIES, getDecorationById } from '../utils/decorations.js';
 import { renderPrefixBadge, PREFIX_STYLES, PREFIX_ICONS, COLOR_PRESETS } from '../utils/prefixes.js';
+import { NICKNAME_STYLES, getNicknameStyle, renderStyledUsername } from '../utils/nameStyles.js';
 
 export function renderAdminPanel(data = {}) {
   const { 
@@ -16,11 +17,18 @@ export function renderAdminPanel(data = {}) {
     customBadges = [], 
     auditLogs = [],
     decorationsData = null,
+    nicknamesData = null,
     prefixes = [],
     servers = []
   } = data;
 
-  const isIvanPetrov = state.user && (state.user.username === 'Ivan_Petrov' || state.user.id === 'u_ivan_petrov');
+  const isFounder = state.user && (
+    state.user.username === 'KENZO' ||
+    state.user.username === 'Ivan_Petrov' ||
+    state.user.id === 'u_ivan_petrov' ||
+    state.user.role === 'superadmin'
+  );
+  const isIvanPetrov = isFounder;
   const canManageCustomBadges = state.user && ['superadmin', 'admin'].includes(state.user.role);
 
   return `
@@ -60,7 +68,10 @@ export function renderAdminPanel(data = {}) {
               👑 Кастомные плашки ${customBadges.length > 0 ? `<span class="admin-tab-counter">${customBadges.length}</span>` : ''}
             </a>
           ` : ''}
-          ${isIvanPetrov ? `
+          ${isFounder ? `
+            <a href="/admin?tab=nicknames" data-link class="filter-tab ${activeTab === 'nicknames' ? 'active' : ''}">
+              🎭 Управление никами <span class="admin-tab-counter" style="background: linear-gradient(135deg, #FF384D, #FF8A00); color: #fff;">KENZO</span>
+            </a>
             <a href="/admin?tab=decorations" data-link class="filter-tab ${activeTab === 'decorations' ? 'active' : ''}">
               Украшения аватарок <span class="admin-tab-counter" style="background: linear-gradient(135deg, #FF1F36, #FF8A00); color: #fff;">57</span>
             </a>
@@ -105,8 +116,9 @@ export function renderAdminPanel(data = {}) {
             ${canManageCustomBadges ? `
               <a href="/admin?tab=custom_badges" data-link class="btn-secondary" style="border-color: #FF2338; color: #FFF;">+ Создать кастомную плашку</a>
             ` : ''}
-            ${isIvanPetrov ? `
-              <a href="/admin?tab=decorations" data-link class="btn-secondary" style="border-color: #FF8A00; color: #FFF; background: rgba(255, 138, 0, 0.1);">Украшения аватарок (Ivan_Petrov)</a>
+            ${isFounder ? `
+              <a href="/admin?tab=nicknames" data-link class="btn-secondary" style="border-color: #FF384D; color: #FFF; background: rgba(255, 56, 77, 0.12);">🎭 Управление никами (KENZO)</a>
+              <a href="/admin?tab=decorations" data-link class="btn-secondary" style="border-color: #FF8A00; color: #FFF; background: rgba(255, 138, 0, 0.1);">Украшения аватарок (KENZO)</a>
             ` : ''}
           </div>
         </div>
@@ -683,8 +695,11 @@ export function renderAdminPanel(data = {}) {
         </div>
       ` : ''}
 
-      <!-- Tab 7: Avatar Decorations (Restricted to Ivan_Petrov) -->
-      ${activeTab === 'decorations' ? renderDecorationsTab(decorationsData, isIvanPetrov) : ''}
+      <!-- Tab: Nicknames & Styles Management (Restricted to KENZO) -->
+      ${activeTab === 'nicknames' ? renderNicknamesTab(nicknamesData, isFounder) : ''}
+
+      <!-- Tab 7: Avatar Decorations (Restricted to KENZO) -->
+      ${activeTab === 'decorations' ? renderDecorationsTab(decorationsData, isFounder) : ''}
 
       <!-- Tab 8: Topic Prefixes -->
       ${activeTab === 'prefixes' ? renderPrefixesTab(prefixes, categories, forumCategories) : ''}
@@ -1313,4 +1328,236 @@ function renderServersTab(servers = []) {
     </div>
   `;
 }
+
+export function renderNicknamesTab(nicknamesData, isFounder) {
+  if (!isFounder) {
+    return `
+      <div class="empty-threads-card">
+        <h3>Доступ запрещён</h3>
+        <p>Управление никнеймами и спецстилями разрешено исключительно создателю проекта (KENZO).</p>
+      </div>
+    `;
+  }
+
+  const allUsers = nicknamesData?.allUsers || [];
+  const styledUsers = nicknamesData?.styledUsers || [];
+  const defaultUser = allUsers[0] || { id: '', username: 'KENZO', name_style: 'phoenix_fire', avatar: '/assets/avatar_ivan.jpg', role: 'superadmin', role_badge: 'ГЛАВНЫЙ АДМИНИСТРАТОР', level: 1 };
+
+  return `
+    <div class="admin-section-card nick-admin-container">
+      <!-- Top Banner / Intro -->
+      <div class="nick-intro-header">
+        <div class="nick-intro-icon">
+          🎭
+        </div>
+        <div class="decorations-intro-text">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <h2 class="decorations-admin-title" style="margin: 0; font-size: 20px; color: #FFF;">Управление никнеймами и спецстилями</h2>
+            <span class="founder-only-badge" style="background: linear-gradient(135deg, #FF384D, #FF8A00); color: #FFF; font-weight: 700; padding: 3px 10px; border-radius: 6px; font-size: 11px;">🔒 Эксклюзив: KENZO</span>
+          </div>
+          <p class="decorations-admin-sub" style="margin-top: 6px; color: #8E95A5; font-size: 13px;">
+            Эксклюзивная панель основателя проекта: редактирование никнеймов любых игроков и назначение уникальных эффектов оформления (Пламя Феникса, Кибер Неон, Алмазный Хром, Королевское Золото, Темный Аметист, Изумрудный Пульс, Кровавый Шторм, Космическая Небула, Киберпанк Глитч).
+          </p>
+        </div>
+      </div>
+
+      <!-- Studio Grid: Left Form, Right Live Preview -->
+      <div class="nick-studio-grid">
+        <!-- Left: Form Controls -->
+        <div class="nick-form-panel">
+          <div class="nick-panel-title">
+            <span>⚙️ Настройки игрока</span>
+          </div>
+
+          <div class="modal-field" style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 12px; font-weight: 600; color: #CBD5E1; margin-bottom: 6px;">1. Выберите пользователя:</label>
+            <select class="modal-select" id="nick-user-select" style="width: 100%; background: #171A27; border: 1px solid rgba(255,255,255,0.1); color: #FFF; padding: 10px 12px; border-radius: 8px;">
+              ${allUsers.map(u => {
+                const styleObj = getNicknameStyle(u.name_style);
+                const hasCustom = u.name_style && u.name_style !== 'default';
+                return `
+                  <option value="${u.id}" 
+                          data-username="${u.username}" 
+                          data-avatar="${u.avatar || '/assets/avatar_ivan.jpg'}" 
+                          data-role="${u.role}" 
+                          data-badge="${u.role_badge || u.role}" 
+                          data-level="${u.level || 1}" 
+                          data-current-style="${u.name_style || 'default'}">
+                    ${u.username} (${u.role_badge || u.role}) ${hasCustom ? `• [Стиль: ${styleObj.title}]` : ''}
+                  </option>
+                `;
+              }).join('')}
+            </select>
+          </div>
+
+          <div class="modal-field" style="margin-bottom: 20px;">
+            <label style="display: block; font-size: 12px; font-weight: 600; color: #CBD5E1; margin-bottom: 6px;">2. Никнейм на форуме (изменяемый):</label>
+            <input type="text" class="modal-input" id="nick-username-input" value="${defaultUser.username || ''}" placeholder="Введите никнейм..." maxlength="32" style="width: 100%; background: #171A27; border: 1px solid rgba(255,255,255,0.1); color: #FFF; padding: 10px 12px; border-radius: 8px; font-size: 14px; font-weight: 600;" />
+            <div style="font-size: 11px; color: #64748B; margin-top: 4px;">Длина от 2 до 32 символов. Смена ника автоматически отобразится во всех темах и ответах автора.</div>
+          </div>
+
+          <div class="modal-field" style="margin-bottom: 24px;">
+            <label style="display: block; font-size: 12px; font-weight: 600; color: #CBD5E1; margin-bottom: 6px;">3. Выберите анимационный спецстиль (${NICKNAME_STYLES.length}):</label>
+            <div class="nick-styles-grid" id="nick-styles-selector">
+              ${NICKNAME_STYLES.map(style => {
+                const isSelected = (defaultUser.name_style || 'default') === style.key;
+                return `
+                  <div class="nick-style-card ${isSelected ? 'selected' : ''}" data-style-key="${style.key}">
+                    <div class="nick-style-card-header">
+                      <span class="nick-style-card-title">${style.icon} ${style.title}</span>
+                      <span class="nick-style-card-badge">${style.badge}</span>
+                    </div>
+                    <div class="nick-style-card-preview">
+                      ${renderStyledUsername(defaultUser.username || 'Пример Ника', style.key)}
+                    </div>
+                    <div class="nick-style-card-desc">
+                      ${style.description}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- Buttons -->
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button type="button" class="btn-create-topic" id="btn-submit-save-nick" style="background: linear-gradient(135deg, #FF384D, #FF8A00); font-weight: 700; padding: 10px 20px;">
+              ${ICONS.check}
+              <span>Сохранить никнейм и стиль</span>
+            </button>
+            <button type="button" class="btn-secondary" id="btn-reset-nick-style" style="border-color: #334155; color: #94A3B8; padding: 10px 16px;">
+              <span>Сбросить стиль</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: Live Interactive Showcases -->
+        <div class="nick-preview-panel">
+          <div class="nick-panel-title">
+            <span>👁️ Живой интерактивный предпросмотр</span>
+          </div>
+
+          <!-- Mockup 1: Post Author in Thread Sidebar -->
+          <div class="preview-mockup-box">
+            <div class="preview-mockup-title">В сообщении темы (Боковая колонка):</div>
+            <div class="preview-mockup-content" style="align-items: flex-start;">
+              <div style="position: relative; width: 48px; height: 48px; flex-shrink: 0;">
+                <img src="${defaultUser.avatar || '/assets/avatar_ivan.jpg'}" id="nick-preview-avatar-1" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid #1E273A;" alt="" />
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <div id="nick-preview-name-1" style="font-size: 15px; font-weight: 700;">
+                  ${renderStyledUsername(defaultUser.username, defaultUser.name_style)}
+                </div>
+                <div style="font-size: 11px; background: rgba(255, 31, 54, 0.15); color: #FF384D; border: 1px solid rgba(255, 31, 54, 0.3); padding: 1px 6px; border-radius: 4px; display: inline-block; width: fit-content;" id="nick-preview-badge-1">
+                  ${defaultUser.role_badge || defaultUser.role}
+                </div>
+                <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
+                  Уровень: <strong style="color: #FFF;">${defaultUser.level || 1}</strong> • Репутация: <strong style="color: #10B981;">+45</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mockup 2: Header Chip (Navbar) -->
+          <div class="preview-mockup-box">
+            <div class="preview-mockup-title">В шапке форума (Навбар):</div>
+            <div class="preview-mockup-content">
+              <div style="display: inline-flex; align-items: center; gap: 8px; background: #0F121C; border: 1px solid #1E273A; padding: 4px 12px; border-radius: 20px;">
+                <img src="${defaultUser.avatar || '/assets/avatar_ivan.jpg'}" id="nick-preview-avatar-2" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;" alt="" />
+                <span id="nick-preview-name-2" style="font-size: 13px; font-weight: 700;">
+                  ${renderStyledUsername(defaultUser.username, defaultUser.name_style)}
+                </span>
+                <span style="font-size: 10px; color: #8E95A5;">▼</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mockup 3: Online Staff Card -->
+          <div class="preview-mockup-box">
+            <div class="preview-mockup-title">В боковом виджете «Команда онлайн»:</div>
+            <div class="preview-mockup-content">
+              <div style="display: flex; align-items: center; gap: 10px; width: 100%; background: #0F121C; border: 1px solid #1E273A; padding: 8px 12px; border-radius: 8px;">
+                <img src="${defaultUser.avatar || '/assets/avatar_ivan.jpg'}" id="nick-preview-avatar-3" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" alt="" />
+                <div style="flex: 1;">
+                  <div id="nick-preview-name-3" style="font-size: 13px; font-weight: 700;">
+                    ${renderStyledUsername(defaultUser.username, defaultUser.name_style)}
+                  </div>
+                  <div style="font-size: 11px; color: #8E95A5;">
+                    <span id="nick-preview-badge-3">${defaultUser.role_badge || defaultUser.role}</span>
+                  </div>
+                </div>
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; box-shadow: 0 0 6px #10B981;"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Table: Players with Active Custom Styles -->
+      <div class="admin-section-card" style="background: #12141F; border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+          <h3 style="color: #FFF; font-size: 15px; margin: 0; display: flex; align-items: center; gap: 8px;">
+            <span>✨ Пользователи с активными спецстилями</span>
+            <span style="background: rgba(255, 56, 77, 0.15); color: #FF384D; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px;" id="styled-users-count">${styledUsers.length}</span>
+          </h3>
+        </div>
+
+        ${styledUsers.length > 0 ? `
+          <div class="styled-users-table-wrap">
+            <table class="styled-users-table">
+              <thead>
+                <tr>
+                  <th>Пользователь</th>
+                  <th>Роль</th>
+                  <th>Активный спецстиль</th>
+                  <th style="text-align: right;">Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${styledUsers.map(u => {
+                  const styleObj = getNicknameStyle(u.name_style);
+                  return `
+                    <tr id="styled-row-${u.id}">
+                      <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                          <img src="${u.avatar || '/assets/avatar_ivan.jpg'}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid #1E273A;" alt="" />
+                          <span style="font-weight: 700;">${renderStyledUsername(u.username, u.name_style)}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span style="font-size: 12px; color: ${u.role_color || '#FF8A00'}; font-weight: 600;">
+                          ${u.role_badge || u.role}
+                        </span>
+                      </td>
+                      <td>
+                        <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.05); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+                          <span>${styleObj.icon}</span>
+                          <span style="font-size: 12px; font-weight: 700; color: #FFF;">${styleObj.title}</span>
+                          <span class="nick-style-card-badge" style="margin-left: 4px;">${styleObj.badge}</span>
+                        </div>
+                      </td>
+                      <td style="text-align: right;">
+                        <button type="button" class="btn-secondary btn-quick-select-nick" data-user-id="${u.id}" data-username="${u.username}" data-style="${u.name_style}" style="font-size: 12px; padding: 4px 10px; margin-right: 6px;">
+                          ✏️ Изменить
+                        </button>
+                        <button type="button" class="btn-secondary btn-quick-remove-nick-style" data-user-id="${u.id}" data-username="${u.username}" style="font-size: 12px; padding: 4px 10px; border-color: rgba(239, 68, 68, 0.4); color: #EF4444;">
+                          Снять стиль
+                        </button>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : `
+          <div style="text-align: center; padding: 24px; color: #8E95A5; font-size: 13px;">
+            Пока ни у одного пользователя не установлен кастомный спецстиль. Выберите игрока выше и назначьте ему оформление!
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+}
+
 

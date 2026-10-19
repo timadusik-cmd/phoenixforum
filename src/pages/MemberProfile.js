@@ -5,6 +5,7 @@ import { renderRoleBadge, renderUserBadges } from '../utils/badges.js';
 import { formatTimeAgo } from '../utils/time.js';
 import { renderLevelShield, getLevelProgress, renderAwardCard } from '../utils/awards.js';
 import { renderPrefixBadge } from '../utils/prefixes.js';
+import { renderStyledUsername } from '../utils/nameStyles.js';
 
 export function renderMemberProfile(data) {
   const { user, recentTopics = [], recentPosts = [] } = data;
@@ -78,7 +79,7 @@ export function renderMemberProfile(data) {
           <div class="profile-hero-info">
             <div class="profile-hero-top-line">
               <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
-                <h1 class="profile-hero-name">${user.username}</h1>
+                <h1 class="profile-hero-name">${renderStyledUsername(user.username, user.name_style)}</h1>
                 ${renderLevelShield(progress.level, { size: 36 })}
                 <span class="profile-online-text">
                   <span class="status-dot-green"></span>

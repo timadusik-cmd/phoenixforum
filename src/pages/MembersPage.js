@@ -1,6 +1,7 @@
 // Phoenix RP Forum - Members Directory Page
 import { ICONS } from '../utils/icons.js';
 import { renderRoleBadge, renderUserBadges } from '../utils/badges.js';
+import { renderStyledUsername } from '../utils/nameStyles.js';
 
 export function renderMembersPage(data = {}) {
   const { users = [], pagination = {}, currentRole = 'all', searchQuery = '' } = data;
@@ -52,7 +53,7 @@ export function renderMembersPage(data = {}) {
               <span class="avatar-status-dot ${u.status || 'online'}"></span>
             </div>
 
-            <a href="/forum/member/${u.id}" data-link class="member-card-name">${u.username}</a>
+            <a href="/forum/member/${u.id}" data-link class="member-card-name">${renderStyledUsername(u.username, u.name_style)}</a>
             <div style="margin: 6px 0; width: 100%; display: flex; justify-content: center;">
               ${renderUserBadges(u, { size: 'compact' })}
             </div>
