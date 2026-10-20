@@ -1455,6 +1455,11 @@ export function renderNicknamesTab(nicknamesData, isFounder) {
                 <div style="font-size: 12px; font-weight: 600; color: #F97316;">Инферно</div>
                 <div style="font-size: 10px; color: #8E95A5;">(Discord APNG)</div>
               </div>
+              <div class="profile-effect-card ${(defaultUser.profile_effect || '') === '/decorations/profile_effect_dragon.png' ? 'selected' : ''}" data-effect-url="/decorations/profile_effect_dragon.png" style="background: #171A27; border: 1.5px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 8px; cursor: pointer; text-align: center; transition: all 0.2s;">
+                <div style="font-size: 22px; margin-bottom: 4px;">🐉🌊</div>
+                <div style="font-size: 12px; font-weight: 600; color: #00D2FF;">Лазурный Дракон</div>
+                <div style="font-size: 10px; color: #8E95A5;">(Discord APNG)</div>
+              </div>
             </div>
           </div>
 
