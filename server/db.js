@@ -392,6 +392,24 @@ export function initDatabase() {
   try { db.prepare("ALTER TABLE users ADD COLUMN profile_effect TEXT DEFAULT NULL").run(); } catch {}
   try { db.prepare("ALTER TABLE users ADD COLUMN name_style TEXT DEFAULT 'default'").run(); } catch {}
   try { db.prepare("ALTER TABLE users ADD COLUMN last_seen_at DATETIME DEFAULT NULL").run(); } catch {}
+  try { db.prepare("ALTER TABLE users ADD COLUMN warns_count INTEGER DEFAULT 0").run(); } catch {}
+  try { db.prepare("ALTER TABLE users ADD COLUMN banned_until DATETIME DEFAULT NULL").run(); } catch {}
+  try { db.prepare("ALTER TABLE users ADD COLUMN ban_reason TEXT DEFAULT NULL").run(); } catch {}
+  try {
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS user_warnings (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        moderator_id TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        points INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (moderator_id) REFERENCES users (id) ON DELETE CASCADE
+      )
+    `).run();
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_warnings_user ON user_warnings (user_id, created_at DESC)").run();
+  } catch {}
   try { db.prepare("ALTER TABLE threads ADD COLUMN prefix_id TEXT DEFAULT NULL").run(); } catch {}
   try { db.prepare("CREATE INDEX IF NOT EXISTS idx_threads_prefix ON threads (prefix_id)").run(); } catch {}
 

@@ -333,10 +333,73 @@ router.put('/users/:id/role', requireRole('admin'), (req, res) => {
   }
 });
 
-// Ban / Unban user
+// GET users for Admin panel with search, role filter and pagination
+router.get('/users', requireRole('moderator'), (req, res) => {
+  try {
+    const { search, role, page = 1, limit = 50 } = req.query;
+    const conditions = [];
+    const params = [];
+
+    if (search && search.trim()) {
+      conditions.push('(u.username LIKE ? OR u.character_name LIKE ? OR u.email LIKE ?)');
+      const s = `%${search.trim()}%`;
+      params.push(s, s, s);
+    }
+
+    if (role && role !== 'all') {
+      conditions.push('u.role = ?');
+      params.push(role);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const parsedLimit = parseInt(limit) || 50;
+    const offset = (Math.max(1, parseInt(page)) - 1) * parsedLimit;
+
+    const total = db.prepare(`SELECT COUNT(*) as count FROM users u ${whereClause}`).get(...params).count;
+
+    const users = db.prepare(`
+      SELECT u.id, u.username, u.character_name, u.email, u.avatar, u.avatar_decoration,
+             u.profile_effect, u.name_style, u.role, u.role_badge, u.role_color,
+             u.level, u.reputation, u.is_banned, u.banned_until, u.ban_reason,
+             u.warns_count, u.created_at, u.last_seen_at,
+             (SELECT COUNT(*) FROM warnings w WHERE w.user_id = u.id) as active_warns
+      FROM users u
+      ${whereClause}
+      ORDER BY 
+        CASE u.role 
+          WHEN 'superadmin' THEN 1 
+          WHEN 'admin' THEN 2 
+          WHEN 'moderator' THEN 3 
+          ELSE 4 
+        END ASC,
+        u.created_at DESC
+      LIMIT ? OFFSET ?
+    `).all(...params, parsedLimit, offset);
+
+    const enriched = users.map(u => ({
+      ...u,
+      badges: getUserBadges(u.id, u)
+    }));
+
+    res.json({
+      users: enriched,
+      pagination: {
+        page: parseInt(page),
+        limit: parsedLimit,
+        total,
+        totalPages: Math.ceil(total / parsedLimit)
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching admin users:', err);
+    res.status(500).json({ error: 'Ошибка загрузки пользователей.' });
+  }
+});
+
+// Ban / Unban user with duration
 router.put('/users/:id/ban', requireRole('moderator'), (req, res) => {
   try {
-    const { is_banned, ban_reason } = req.body;
+    const { is_banned, ban_reason, duration } = req.body;
     const targetUser = db.prepare('SELECT id, username, role FROM users WHERE id = ?').get(req.params.id);
     if (!targetUser) return res.status(404).json({ error: 'Пользователь не найден.' });
 
@@ -345,28 +408,104 @@ router.put('/users/:id/ban', requireRole('moderator'), (req, res) => {
       return res.status(403).json({ error: 'Нельзя заблокировать главного администратора.' });
     }
 
-    db.prepare(`
-      UPDATE users 
-      SET is_banned = ?, ban_reason = ?, status = 'offline', updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).run(is_banned ? 1 : 0, is_banned ? (ban_reason || 'Нарушение правил проекта') : null, targetUser.id);
+    if (is_banned) {
+      let bannedUntil = null;
+      let durationDesc = 'навсегда';
 
-    db.prepare(`
-      INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
-      VALUES (?, ?, ?, 'user', ?, ?, ?)
-    `).run(
-      'log_' + Date.now(),
-      req.user.id,
-      is_banned ? 'ban_user' : 'unban_user',
-      targetUser.id,
-      `${is_banned ? 'Блокировка' : 'Разблокировка'} пользователя ${targetUser.username}. Причина: ${ban_reason || '—'}`,
-      req.ip || ''
-    );
+      if (duration === '1h') {
+        bannedUntil = new Date(Date.now() + 3600 * 1000).toISOString();
+        durationDesc = 'на 1 час';
+      } else if (duration === '12h') {
+        bannedUntil = new Date(Date.now() + 12 * 3600 * 1000).toISOString();
+        durationDesc = 'на 12 часов';
+      } else if (duration === '1d') {
+        bannedUntil = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+        durationDesc = 'на 1 день';
+      } else if (duration === '3d') {
+        bannedUntil = new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString();
+        durationDesc = 'на 3 дня';
+      } else if (duration === '7d') {
+        bannedUntil = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+        durationDesc = 'на 7 дней';
+      } else if (duration === '30d') {
+        bannedUntil = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
+        durationDesc = 'на 30 дней';
+      } else if (duration && !isNaN(parseInt(duration))) {
+        const days = parseInt(duration);
+        bannedUntil = new Date(Date.now() + days * 24 * 3600 * 1000).toISOString();
+        durationDesc = `на ${days} дн.`;
+      }
 
-    res.json({ message: is_banned ? `Пользователь ${targetUser.username} заблокирован.` : `Пользователь ${targetUser.username} разблокирован.` });
+      const cleanReason = (ban_reason && ban_reason.trim()) ? ban_reason.trim() : 'Нарушение регламента сервера';
+
+      db.prepare(`
+        UPDATE users 
+        SET is_banned = 1, banned_until = ?, ban_reason = ?, status = 'offline', updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(bannedUntil, cleanReason, targetUser.id);
+
+      db.prepare(`
+        INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+        VALUES (?, ?, 'ban_user', 'user', ?, ?, ?)
+      `).run(
+        'log_' + Date.now(),
+        req.user.id,
+        targetUser.id,
+        `Блокировка пользователя ${targetUser.username} ${durationDesc}. Причина: ${cleanReason}`,
+        req.ip || ''
+      );
+
+      return res.json({ 
+        message: `Пользователь ${targetUser.username} заблокирован ${durationDesc}.`,
+        is_banned: true,
+        banned_until: bannedUntil,
+        ban_reason: cleanReason
+      });
+    } else {
+      // Unban
+      db.prepare(`
+        UPDATE users 
+        SET is_banned = 0, banned_until = NULL, ban_reason = NULL, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(targetUser.id);
+
+      db.prepare(`
+        INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+        VALUES (?, ?, 'unban_user', 'user', ?, ?, ?)
+      `).run(
+        'log_' + Date.now(),
+        req.user.id,
+        targetUser.id,
+        `Разблокировка пользователя ${targetUser.username}`,
+        req.ip || ''
+      );
+
+      return res.json({ 
+        message: `Пользователь ${targetUser.username} успешно разблокирован.`,
+        is_banned: false
+      });
+    }
   } catch (err) {
     console.error('Error banning user:', err);
     res.status(500).json({ error: 'Ошибка при изменении блокировки пользователя.' });
+  }
+});
+
+// GET user warnings list
+router.get('/users/:id/warnings', requireRole('moderator'), (req, res) => {
+  try {
+    const warnings = db.prepare(`
+      SELECT w.*, u.username as moderator_name
+      FROM warnings w
+      LEFT JOIN users u ON w.moderator_id = u.id
+      WHERE w.user_id = ?
+      ORDER BY w.created_at DESC
+    `).all(req.params.id);
+
+    const user = db.prepare('SELECT id, username, warns_count, is_banned FROM users WHERE id = ?').get(req.params.id);
+    res.json({ warnings, user });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка загрузки варнов пользователя.' });
   }
 });
 
@@ -378,31 +517,139 @@ router.post('/users/:id/warn', requireRole('moderator'), (req, res) => {
       return res.status(400).json({ error: 'Укажите причину предупреждения.' });
     }
 
-    const targetUser = db.prepare('SELECT id, username FROM users WHERE id = ?').get(req.params.id);
+    const targetUser = db.prepare('SELECT id, username, role, warns_count FROM users WHERE id = ?').get(req.params.id);
     if (!targetUser) return res.status(404).json({ error: 'Пользователь не найден.' });
 
+    if (targetUser.role === 'superadmin') {
+      return res.status(403).json({ error: 'Нельзя выдать варн главному администратору.' });
+    }
+
+    const warnPoints = Math.max(1, parseInt(points) || 1);
     const warnId = 'warn_' + Date.now();
+    const cleanReason = reason.trim();
+
     db.prepare(`
       INSERT INTO warnings (id, user_id, moderator_id, reason, points, created_at)
       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    `).run(warnId, targetUser.id, req.user.id, reason.trim(), parseInt(points));
+    `).run(warnId, targetUser.id, req.user.id, cleanReason, warnPoints);
 
-    // Send notification to user
-    db.prepare(`
-      INSERT INTO notifications (id, user_id, type, title, text, link, is_read, created_at)
-      VALUES (?, ?, 'warning', 'Вам выдано предупреждение от модератора', ?, ?, 0, CURRENT_TIMESTAMP)
-    `).run('notif_' + Date.now(), targetUser.id, `Причина: ${reason.trim()} (+${points} варн)`, '/forum/rules');
+    const newWarnsCount = (targetUser.warns_count || 0) + warnPoints;
+    let autoBanned = false;
+
+    // If 3 or more warns, automatically ban for 7 days
+    if (newWarnsCount >= 3) {
+      autoBanned = true;
+      const banUntil = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+      db.prepare(`
+        UPDATE users 
+        SET warns_count = ?, is_banned = 1, banned_until = ?, ban_reason = 'Превышен лимит предупреждений (3/3 варнов)', status = 'offline', updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(newWarnsCount, banUntil, targetUser.id);
+    } else {
+      db.prepare(`
+        UPDATE users 
+        SET warns_count = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(newWarnsCount, targetUser.id);
+    }
+
+    // Notification
+    try {
+      db.prepare(`
+        INSERT INTO notifications (id, user_id, type, title, text, link, is_read, created_at)
+        VALUES (?, ?, 'warning', 'Вам выдано предупреждение (варн)', ?, ?, 0, CURRENT_TIMESTAMP)
+      `).run(
+        'notif_' + Date.now(),
+        targetUser.id,
+        `Причина: ${cleanReason} (Всего варнов: ${newWarnsCount}/3). ${autoBanned ? 'Аккаунт заблокирован на 7 дней.' : ''}`,
+        '/forum/rules'
+      );
+    } catch {}
 
     // Audit log
     db.prepare(`
       INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
       VALUES (?, ?, 'warn_user', 'user', ?, ?, ?)
-    `).run('log_' + Date.now(), req.user.id, targetUser.id, `Выдача варна пользователю ${targetUser.username}: ${reason}`, req.ip || '');
+    `).run('log_' + Date.now(), req.user.id, targetUser.id, `Выдача варна пользователю ${targetUser.username} (+${warnPoints}, всего: ${newWarnsCount}). Причина: ${cleanReason}`, req.ip || '');
 
-    res.json({ message: `Предупреждение выдано пользователю ${targetUser.username}.` });
+    res.json({
+      message: autoBanned 
+        ? `Пользователю ${targetUser.username} выдан варн (${newWarnsCount}/3). Аккаунт заблокирован на 7 дней!`
+        : `Варн выдан пользователю ${targetUser.username} (${newWarnsCount}/3).`,
+      warns_count: newWarnsCount,
+      autoBanned
+    });
   } catch (err) {
     console.error('Error issuing warning:', err);
     res.status(500).json({ error: 'Ошибка при выдаче предупреждения.' });
+  }
+});
+
+// Delete specific warning
+router.delete('/users/:id/warn/:warnId', requireRole('moderator'), (req, res) => {
+  try {
+    const { id, warnId } = req.params;
+    const warn = db.prepare('SELECT * FROM warnings WHERE id = ? AND user_id = ?').get(warnId, id);
+    if (!warn) {
+      return res.status(404).json({ error: 'Предупреждение не найдено.' });
+    }
+
+    db.prepare('DELETE FROM warnings WHERE id = ?').run(warnId);
+    db.prepare('UPDATE users SET warns_count = MAX(0, COALESCE(warns_count, 1) - ?) WHERE id = ?').run(warn.points || 1, id);
+
+    res.json({ message: 'Предупреждение снято.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка снятия предупреждения.' });
+  }
+});
+
+// DELETE user account completely
+router.delete('/users/:id', requireRole('admin'), (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const targetUser = db.prepare('SELECT id, username, email, role FROM users WHERE id = ?').get(targetId);
+    if (!targetUser) {
+      return res.status(404).json({ error: 'Пользователь не найден.' });
+    }
+
+    // Cannot delete own account
+    if (req.user.id === targetId) {
+      return res.status(400).json({ error: 'Вы не можете удалить свой собственный аккаунт.' });
+    }
+
+    // Cannot delete founder or superadmin unless caller is founder
+    const isCallerFounder = req.user.username === 'KENZO' || req.user.username === 'Ivan_Petrov' || req.user.id === 'u_ivan_petrov';
+    if ((targetUser.username === 'KENZO' || targetUser.username === 'Ivan_Petrov' || targetUser.id === 'u_ivan_petrov' || targetUser.role === 'superadmin') && !isCallerFounder) {
+      return res.status(403).json({ error: 'Нельзя удалить аккаунт основателя или главного администратора.' });
+    }
+
+    // Delete user cascade
+    const delTx = db.transaction(() => {
+      db.prepare('DELETE FROM warnings WHERE user_id = ?').run(targetId);
+      db.prepare('DELETE FROM user_badges WHERE user_id = ?').run(targetId);
+      db.prepare('DELETE FROM user_awards WHERE user_id = ?').run(targetId);
+      db.prepare('DELETE FROM notifications WHERE user_id = ?').run(targetId);
+      db.prepare('DELETE FROM reputation_logs WHERE target_user_id = ? OR giver_user_id = ?').run(targetId, targetId);
+      db.prepare('DELETE FROM users WHERE id = ?').run(targetId);
+
+      db.prepare(`
+        INSERT INTO audit_logs (id, user_id, action, target_type, target_id, details, ip_address)
+        VALUES (?, ?, 'delete_user', 'user', ?, ?, ?)
+      `).run(
+        'log_' + Date.now(),
+        req.user.id,
+        targetId,
+        `Полное удаление аккаунта пользователя «${targetUser.username}» (${targetUser.email})`,
+        req.ip || ''
+      );
+    });
+
+    delTx();
+
+    res.json({ message: `Аккаунт пользователя «${targetUser.username}» безвозвратно удалён.` });
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    res.status(500).json({ error: 'Ошибка при удалении аккаунта: ' + err.message });
   }
 });
 

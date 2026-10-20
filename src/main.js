@@ -315,6 +315,7 @@ router.addRoute('/admin', async (params, query) => {
     const statsData = await api.admin.getStats();
     let reports = [];
     let users = [];
+    let pagination = {};
     let customBadges = [];
     let auditLogs = [];
     let decorationsData = null;
@@ -330,19 +331,28 @@ router.addRoute('/admin', async (params, query) => {
       state.categories = catsRes.categories || [];
       state.forumCategories = catsRes.forumCategories || [];
     } else if (tab === 'users') {
+      const page = parseInt(query.page || 1, 10);
+      const search = query.search || '';
+      const role = query.role || 'all';
       const [uData, cbData] = await Promise.all([
-        api.users.getMembers({ limit: 50 }),
+        api.admin.getUsers({ page, limit: 50, search, role }),
         api.admin.getCustomBadges().catch(() => ({ customBadges: [] }))
       ]);
       users = uData.users || [];
+      pagination = uData.pagination || { page: 1, totalPages: 1, total: users.length, limit: 50 };
       customBadges = cbData.customBadges || [];
     } else if (tab === 'custom_badges') {
       const cbData = await api.admin.getCustomBadges().catch(() => ({ customBadges: [] }));
       customBadges = cbData.customBadges || [];
     } else if (tab === 'decorations') {
-      const isIvan = state.user && (state.user.username === 'Ivan_Petrov' || state.user.id === 'u_ivan_petrov');
-      if (!isIvan) {
-        showToast('Доступ к украшениям разрешён исключительно создателю проекта Ivan_Petrov.');
+      const isFounder = state.user && (
+        state.user.username === 'KENZO' ||
+        state.user.username === 'Ivan_Petrov' ||
+        state.user.id === 'u_ivan_petrov' ||
+        state.user.role === 'superadmin'
+      );
+      if (!isFounder) {
+        showToast('Доступ к украшениям разрешён создателю проекта KENZO.');
         router.navigate('/admin?tab=overview');
         return;
       }
@@ -405,6 +415,9 @@ router.addRoute('/admin', async (params, query) => {
       categories: state.categories,
       forumCategories: state.forumCategories || [],
       users,
+      pagination,
+      searchQuery: query.search || '',
+      selectedRole: query.role || 'all',
       customBadges,
       auditLogs,
       decorationsData,
@@ -1114,6 +1127,118 @@ function attachGlobalEvents() {
     };
   }
 
+  // Settings: Avatar Decoration Selection & Saving
+  let settingsSelectedDecUrl = state.user?.avatar_decoration || '';
+  const settingsPreviewDecImg = document.getElementById('settings-preview-dec-img');
+  const settingsPreviewDecName = document.getElementById('settings-preview-dec-name');
+  const btnSaveSettingsDec = document.getElementById('btn-save-settings-decoration');
+  const btnRemoveSettingsDec = document.getElementById('btn-remove-settings-decoration');
+
+  document.querySelectorAll('.settings-dec-card').forEach(card => {
+    card.onclick = () => {
+      document.querySelectorAll('.settings-dec-card').forEach(c => {
+        c.classList.remove('selected');
+        c.style.borderColor = 'rgba(255,255,255,0.08)';
+      });
+      card.classList.add('selected');
+      card.style.borderColor = '#FF1F36';
+      settingsSelectedDecUrl = card.getAttribute('data-url') || '';
+      const dName = card.getAttribute('data-name') || '';
+
+      if (settingsPreviewDecImg) {
+        settingsPreviewDecImg.src = settingsSelectedDecUrl;
+        settingsPreviewDecImg.style.display = 'block';
+      }
+      if (settingsPreviewDecName) {
+        settingsPreviewDecName.textContent = dName;
+      }
+    };
+  });
+
+  document.querySelectorAll('.btn-settings-dec-cat').forEach(pill => {
+    pill.onclick = () => {
+      document.querySelectorAll('.btn-settings-dec-cat').forEach(p => {
+        p.classList.remove('active');
+        p.style.background = '';
+        p.style.borderColor = '';
+        p.style.color = '';
+      });
+      pill.classList.add('active');
+      pill.style.background = '#FF1F36';
+      pill.style.borderColor = '#FF1F36';
+      pill.style.color = '#FFF';
+
+      const catId = pill.getAttribute('data-cat-id');
+      document.querySelectorAll('.settings-dec-card').forEach(card => {
+        const cardCat = card.getAttribute('data-category');
+        if (catId === 'all') {
+          card.style.display = '';
+        } else {
+          const matchCat = (catId === 'flame' && cardCat === 'Неон и пламя') ||
+                           (catId === 'mystic' && cardCat === 'Мистика и тьма') ||
+                           (catId === 'cyber' && cardCat === 'Космос и киберпанк') ||
+                           (catId === 'nature' && cardCat === 'Природа и магия') ||
+                           (catId === 'anime' && cardCat === 'Аниме и ретро');
+          card.style.display = matchCat ? '' : 'none';
+        }
+      });
+    };
+  });
+
+  if (btnSaveSettingsDec) {
+    btnSaveSettingsDec.onclick = async () => {
+      if (!settingsSelectedDecUrl) {
+        showToast('Выберите украшение из каталога');
+        return;
+      }
+      btnSaveSettingsDec.disabled = true;
+      btnSaveSettingsDec.textContent = 'Сохранение...';
+      try {
+        const res = await api.auth.updateDecoration(settingsSelectedDecUrl);
+        showToast(res.message || 'Украшение успешно установлено!');
+        playSound('success');
+        if (state.user) {
+          state.user.avatar_decoration = settingsSelectedDecUrl;
+          authStorage.saveUser(state.user);
+          notifyStateChange();
+        }
+      } catch (err) {
+        alert(err.message || 'Ошибка установки украшения');
+      } finally {
+        btnSaveSettingsDec.disabled = false;
+        btnSaveSettingsDec.innerHTML = `${ICONS.check} <span>Применить украшение</span>`;
+      }
+    };
+  }
+
+  if (btnRemoveSettingsDec) {
+    btnRemoveSettingsDec.onclick = async () => {
+      if (!confirm('Снять текущее украшение аватарки?')) return;
+      btnRemoveSettingsDec.disabled = true;
+      try {
+        const res = await api.auth.updateDecoration(null);
+        showToast(res.message || 'Украшение снято.');
+        playSound('click');
+        settingsSelectedDecUrl = '';
+        if (settingsPreviewDecImg) settingsPreviewDecImg.style.display = 'none';
+        if (settingsPreviewDecName) settingsPreviewDecName.textContent = 'Без украшения';
+        document.querySelectorAll('.settings-dec-card').forEach(c => {
+          c.classList.remove('selected');
+          c.style.borderColor = 'rgba(255,255,255,0.08)';
+        });
+        if (state.user) {
+          state.user.avatar_decoration = null;
+          authStorage.saveUser(state.user);
+          notifyStateChange();
+        }
+      } catch (err) {
+        alert(err.message || 'Ошибка снятия украшения');
+      } finally {
+        btnRemoveSettingsDec.disabled = false;
+      }
+    };
+  }
+
   // Notifications: Read All & Mark One
   const btnNotifsReadAll = document.getElementById('btn-notifs-read-all');
   if (btnNotifsReadAll) {
@@ -1250,32 +1375,251 @@ function attachGlobalEvents() {
     };
   });
 
-  document.querySelectorAll('[data-action="toggle-ban"]').forEach(btn => {
-    btn.onclick = async () => {
-      const uid = btn.getAttribute('data-user-id');
-      const isBanned = btn.getAttribute('data-banned') === '1';
-      let reason = '';
-      if (!isBanned) {
-        reason = prompt('Укажите причину блокировки:', 'Нарушение правил сервера');
-        if (!reason) return;
+  // ==============================================================
+  // USER SEARCH, FILTER & PAGINATION EVENTS
+  // ==============================================================
+  const adminUserSearchInput = document.getElementById('admin-user-search-input');
+  const adminUserRoleFilter = document.getElementById('admin-user-role-filter');
+  const btnAdminSearchUsers = document.getElementById('btn-admin-search-users');
+  const btnAdminResetUsers = document.getElementById('btn-admin-reset-users-filter');
+
+  function triggerAdminUserSearch() {
+    const s = (adminUserSearchInput?.value || '').trim();
+    const r = adminUserRoleFilter?.value || 'all';
+    const params = new URLSearchParams();
+    params.set('tab', 'users');
+    if (s) params.set('search', s);
+    if (r && r !== 'all') params.set('role', r);
+    params.set('page', '1');
+    router.navigate('/admin?' + params.toString());
+  }
+
+  if (btnAdminSearchUsers) {
+    btnAdminSearchUsers.onclick = triggerAdminUserSearch;
+  }
+  if (adminUserSearchInput) {
+    adminUserSearchInput.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        triggerAdminUserSearch();
       }
-      try {
-        const res = await api.admin.banUser(uid, { is_banned: !isBanned, ban_reason: reason });
-        showToast(res.message);
-        router.resolve();
-      } catch (err) { alert(err.message); }
+    };
+  }
+  if (adminUserRoleFilter) {
+    adminUserRoleFilter.onchange = triggerAdminUserSearch;
+  }
+  if (btnAdminResetUsers) {
+    btnAdminResetUsers.onclick = () => {
+      router.navigate('/admin?tab=users');
+    };
+  }
+
+  document.querySelectorAll('.btn-admin-page-nav').forEach(btn => {
+    btn.onclick = () => {
+      const p = btn.getAttribute('data-page');
+      if (!p) return;
+      const s = (adminUserSearchInput?.value || '').trim();
+      const r = adminUserRoleFilter?.value || 'all';
+      const params = new URLSearchParams();
+      params.set('tab', 'users');
+      if (s) params.set('search', s);
+      if (r && r !== 'all') params.set('role', r);
+      params.set('page', p);
+      router.navigate('/admin?' + params.toString());
     };
   });
 
-  document.querySelectorAll('[data-action="warn-user"]').forEach(btn => {
+  // Quick reason presets
+  document.querySelectorAll('.btn-quick-reason').forEach(btn => {
+    btn.onclick = () => {
+      const targetId = btn.getAttribute('data-target');
+      const targetInput = document.getElementById(targetId);
+      if (targetInput) {
+        targetInput.value = btn.innerText.trim();
+        targetInput.focus();
+      }
+    };
+  });
+
+  // ==============================================================
+  // TIMED BAN & UNBAN MODAL EVENTS
+  // ==============================================================
+  let activeBanUserId = null;
+  const modalBan = document.getElementById('modal-ban-user');
+  const banModalUsername = document.getElementById('ban-modal-username');
+  const banModalDuration = document.getElementById('ban-modal-duration');
+  const banModalReason = document.getElementById('ban-modal-reason');
+  const btnConfirmBan = document.getElementById('btn-confirm-ban');
+
+  document.querySelectorAll('[data-action="open-ban-modal"]').forEach(btn => {
+    btn.onclick = () => {
+      activeBanUserId = btn.getAttribute('data-user-id');
+      const uname = btn.getAttribute('data-username');
+      if (banModalUsername) banModalUsername.textContent = uname;
+      if (modalBan) modalBan.style.display = 'flex';
+    };
+  });
+
+  document.querySelectorAll('[data-action="close-ban-modal"]').forEach(btn => {
+    btn.onclick = () => {
+      if (modalBan) modalBan.style.display = 'none';
+      activeBanUserId = null;
+    };
+  });
+
+  if (btnConfirmBan) {
+    btnConfirmBan.onclick = async () => {
+      if (!activeBanUserId) return;
+      const duration = banModalDuration ? banModalDuration.value : '7d';
+      const ban_reason = (banModalReason ? banModalReason.value : '').trim() || 'Нарушение правил сервера';
+      btnConfirmBan.disabled = true;
+      btnConfirmBan.textContent = 'Блокировка...';
+      try {
+        const res = await api.admin.banUser(activeBanUserId, { is_banned: true, duration, ban_reason });
+        showToast(res.message || 'Пользователь успешно заблокирован.');
+        if (modalBan) modalBan.style.display = 'none';
+        activeBanUserId = null;
+        router.resolve();
+      } catch (err) {
+        alert(err.message || 'Ошибка блокировки пользователя');
+      } finally {
+        btnConfirmBan.disabled = false;
+        btnConfirmBan.textContent = 'Подтвердить бан';
+      }
+    };
+  }
+
+  // Direct unban
+  document.querySelectorAll('[data-action="unban-user"]').forEach(btn => {
     btn.onclick = async () => {
       const uid = btn.getAttribute('data-user-id');
-      const reason = prompt('Укажите причину выдачи варна:', 'Оффтоп / Нарушение регламента');
-      if (!reason) return;
+      const uname = btn.getAttribute('data-username');
+      if (!confirm(`Разблокировать пользователя «${uname}»?`)) return;
       try {
-        const res = await api.admin.warnUser(uid, { reason, points: 1 });
-        showToast(res.message);
-      } catch (err) { alert(err.message); }
+        const res = await api.admin.banUser(uid, { is_banned: false });
+        showToast(res.message || 'Пользователь успешно разблокирован.');
+        router.resolve();
+      } catch (err) {
+        alert(err.message || 'Ошибка разблокировки');
+      }
+    };
+  });
+
+  // ==============================================================
+  // WARN SYSTEM (ISSUING, LISTING, REVOKING)
+  // ==============================================================
+  let activeWarnUserId = null;
+  const modalWarn = document.getElementById('modal-warn-user');
+  const warnModalUsername = document.getElementById('warn-modal-username');
+  const warnModalCount = document.getElementById('warn-modal-count');
+  const warnModalHistory = document.getElementById('warn-modal-history');
+  const warnModalReason = document.getElementById('warn-modal-reason');
+  const btnConfirmWarn = document.getElementById('btn-confirm-warn');
+
+  async function loadUserWarnings(userId) {
+    if (!warnModalHistory) return;
+    warnModalHistory.innerHTML = '<div style="font-size: 12px; color: #8A96A6; text-align: center; padding: 10px;">Загрузка истории варнов...</div>';
+    try {
+      const res = await api.admin.getUserWarnings(userId);
+      const warnings = res.warnings || [];
+      if (warnModalCount) warnModalCount.textContent = `${warnings.length}/3`;
+      if (warnings.length === 0) {
+        warnModalHistory.innerHTML = '<div style="font-size: 12px; color: #10B981; text-align: center; padding: 10px;">У пользователя нет активных предупреждений</div>';
+        return;
+      }
+      const safeText = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      warnModalHistory.innerHTML = warnings.map(w => `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-bottom: 1px solid #1E2330; font-size: 11.5px; gap: 8px;">
+          <div>
+            <div style="color: #FFF; font-weight: 600;">${safeText(w.reason)}</div>
+            <div style="color: #64748B; font-size: 10.5px;">Выдал: ${safeText(w.issuer_name || 'Модератор')} • ${new Date(w.created_at).toLocaleDateString('ru-RU')}</div>
+          </div>
+          <button type="button" class="btn-secondary btn-revoke-warn" data-warn-id="${w.id}" data-user-id="${userId}" style="padding: 2px 7px; font-size: 10.5px; border-color: rgba(239, 68, 68, 0.4); color: #EF4444; white-space: nowrap;">
+            Снять
+          </button>
+        </div>
+      `).join('');
+
+      warnModalHistory.querySelectorAll('.btn-revoke-warn').forEach(revokeBtn => {
+        revokeBtn.onclick = async () => {
+          const warnId = revokeBtn.getAttribute('data-warn-id');
+          if (!confirm('Снять это предупреждение?')) return;
+          try {
+            const rRes = await api.admin.removeUserWarning(userId, warnId);
+            showToast(rRes.message || 'Предупреждение снято');
+            loadUserWarnings(userId);
+            router.resolve();
+          } catch (err) {
+            alert(err.message || 'Ошибка при снятии варна');
+          }
+        };
+      });
+    } catch (e) {
+      warnModalHistory.innerHTML = '<div style="font-size: 12px; color: #EF4444; text-align: center; padding: 10px;">Ошибка загрузки варнов</div>';
+    }
+  }
+
+  document.querySelectorAll('[data-action="open-warn-modal"]').forEach(btn => {
+    btn.onclick = () => {
+      activeWarnUserId = btn.getAttribute('data-user-id');
+      const uname = btn.getAttribute('data-username');
+      const warns = btn.getAttribute('data-warns') || '0';
+      if (warnModalUsername) warnModalUsername.textContent = uname;
+      if (warnModalCount) warnModalCount.textContent = `${warns}/3`;
+      if (modalWarn) modalWarn.style.display = 'flex';
+      loadUserWarnings(activeWarnUserId);
+    };
+  });
+
+  document.querySelectorAll('[data-action="close-warn-modal"]').forEach(btn => {
+    btn.onclick = () => {
+      if (modalWarn) modalWarn.style.display = 'none';
+      activeWarnUserId = null;
+    };
+  });
+
+  if (btnConfirmWarn) {
+    btnConfirmWarn.onclick = async () => {
+      if (!activeWarnUserId) return;
+      const reason = (warnModalReason ? warnModalReason.value : '').trim() || 'Нарушение регламента';
+      btnConfirmWarn.disabled = true;
+      btnConfirmWarn.textContent = 'Выдача...';
+      try {
+        const res = await api.admin.warnUser(activeWarnUserId, { reason, points: 1 });
+        showToast(res.message || 'Предупреждение выдано!');
+        if (res.auto_banned) {
+          alert(`⚡ Пользователь набрал 3 варна и был автоматически заблокирован на 7 дней!`);
+        }
+        loadUserWarnings(activeWarnUserId);
+        router.resolve();
+      } catch (err) {
+        alert(err.message || 'Ошибка выдачи варна');
+      } finally {
+        btnConfirmWarn.disabled = false;
+        btnConfirmWarn.textContent = 'Выдать варн (+1)';
+      }
+    };
+  }
+
+  // ==============================================================
+  // ACCOUNT DELETION
+  // ==============================================================
+  document.querySelectorAll('[data-action="delete-user"]').forEach(btn => {
+    btn.onclick = async () => {
+      const uid = btn.getAttribute('data-user-id');
+      const uname = btn.getAttribute('data-username');
+      if (!confirm(`⚠️ ВЫ ДЕЙСТВИТЕЛЬНО ХОТИТЕ БЕЗВОЗВРАТНО УДАЛИТЬ АККАУНТ «${uname}»?\n\nВсе созданные им темы и сообщения будут отвязаны. Это действие необратимо!`)) {
+        return;
+      }
+      try {
+        const res = await api.admin.deleteUser(uid);
+        showToast(res.message || 'Аккаунт успешно удалён');
+        const row = document.getElementById(`user-row-${uid}`);
+        if (row) row.remove();
+        router.resolve();
+      } catch (err) {
+        alert(err.message || 'Ошибка при удалении аккаунта');
+      }
     };
   });
 

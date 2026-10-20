@@ -103,7 +103,19 @@ router.post('/login', (req, res) => {
     }
 
     if (user.is_banned) {
-      return res.status(403).json({ error: `Ваш аккаунт заблокирован. Причина: ${user.ban_reason || 'Нарушение правил проекта'}` });
+      if (user.banned_until && new Date(user.banned_until).getTime() <= Date.now()) {
+        try {
+          db.prepare("UPDATE users SET is_banned = 0, banned_until = NULL, ban_reason = NULL WHERE id = ?").run(user.id);
+        } catch (e) {}
+        user.is_banned = 0;
+        user.banned_until = null;
+        user.ban_reason = null;
+      } else {
+        const untilStr = user.banned_until 
+          ? `до ${new Date(user.banned_until).toLocaleString('ru-RU')}` 
+          : 'навсегда';
+        return res.status(403).json({ error: `Ваш аккаунт заблокирован ${untilStr}. Причина: ${user.ban_reason || 'Нарушение правил проекта'}` });
+      }
     }
 
     const isMatch = bcrypt.compareSync(password.trim(), user.password_hash);
@@ -186,6 +198,32 @@ router.put('/profile', requireAuth, (req, res) => {
   } catch (err) {
     console.error('Profile update error:', err);
     res.status(500).json({ error: 'Не удалось обновить профиль.' });
+  }
+});
+
+// 4.1 Update Avatar Decoration
+router.put('/decoration', requireAuth, (req, res) => {
+  try {
+    const { decoration_url } = req.body;
+    db.prepare(`
+      UPDATE users 
+      SET avatar_decoration = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(decoration_url || null, req.user.id);
+
+    const updatedUser = db.prepare(`
+      SELECT id, email, username, character_name, avatar, avatar_decoration, profile_effect, name_style, cover_banner, role, role_color, role_badge, status, 
+             level, current_xp, reputation, fraction, server, bio, signature, discord_tag, telegram_tag, vk_link, created_at
+      FROM users WHERE id = ?
+    `).get(req.user.id);
+
+    res.json({
+      user: updatedUser,
+      message: decoration_url ? 'Украшение аватарки успешно установлено!' : 'Украшение аватарки снято.'
+    });
+  } catch (err) {
+    console.error('Update decoration error:', err);
+    res.status(500).json({ error: 'Не удалось обновить украшение.' });
   }
 });
 

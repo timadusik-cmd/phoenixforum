@@ -78,6 +78,7 @@ export const api = {
     register: (email, username, password) => request('/api/auth/register', { method: 'POST', body: { email, username, password } }),
     me: () => request('/api/auth/me'),
     updateProfile: (profileData) => request('/api/auth/profile', { method: 'PUT', body: profileData }),
+    updateDecoration: (decoration_url) => request('/api/auth/decoration', { method: 'PUT', body: { decoration_url } }),
     updateAvatar: (formDataOrUrl) => {
       if (formDataOrUrl instanceof FormData) {
         return request('/api/auth/avatar', { method: 'POST', body: formDataOrUrl });
@@ -195,8 +196,15 @@ export const api = {
     updateCategory: (id, data) => request(`/api/admin/categories/${encodeURIComponent(id)}`, { method: 'PUT', body: data }),
     deleteCategory: (id) => request(`/api/admin/categories/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     changeUserRole: (userId, role) => request(`/api/admin/users/${encodeURIComponent(userId)}/role`, { method: 'PUT', body: { role } }),
+    getUsers: (params = {}) => {
+      const q = new URLSearchParams(params).toString();
+      return request(`/api/admin/users${q ? '?' + q : ''}`);
+    },
     banUser: (userId, data) => request(`/api/admin/users/${encodeURIComponent(userId)}/ban`, { method: 'PUT', body: data }),
     warnUser: (userId, data) => request(`/api/admin/users/${encodeURIComponent(userId)}/warn`, { method: 'POST', body: data }),
+    getUserWarnings: (userId) => request(`/api/admin/users/${encodeURIComponent(userId)}/warnings`),
+    removeUserWarning: (userId, warnId) => request(`/api/admin/users/${encodeURIComponent(userId)}/warn/${encodeURIComponent(warnId)}`, { method: 'DELETE' }),
+    deleteUser: (userId) => request(`/api/admin/users/${encodeURIComponent(userId)}`, { method: 'DELETE' }),
     updateUserStats: (userId, stats) => request(`/api/admin/users/${encodeURIComponent(userId)}/stats`, { method: 'PUT', body: stats }),
     getUserAwards: (userId) => request(`/api/admin/users/${encodeURIComponent(userId)}/awards`),
     grantAward: (userId, data) => request(`/api/admin/users/${encodeURIComponent(userId)}/awards`, { method: 'POST', body: data }),

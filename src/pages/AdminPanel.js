@@ -6,6 +6,16 @@ import { DECORATIONS, DECORATION_CATEGORIES, getDecorationById } from '../utils/
 import { renderPrefixBadge, PREFIX_STYLES, PREFIX_ICONS, COLOR_PRESETS } from '../utils/prefixes.js';
 import { NICKNAME_STYLES, getNicknameStyle, renderStyledUsername } from '../utils/nameStyles.js';
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function renderAdminPanel(data = {}) {
   const { 
     activeTab = 'overview', 
@@ -14,6 +24,9 @@ export function renderAdminPanel(data = {}) {
     categories = [], 
     forumCategories = [],
     users = [], 
+    pagination = {},
+    searchQuery = '',
+    selectedRole = 'all',
     customBadges = [], 
     auditLogs = [],
     decorationsData = null,
@@ -73,7 +86,7 @@ export function renderAdminPanel(data = {}) {
               🎭 Управление никами <span class="admin-tab-counter" style="background: linear-gradient(135deg, #FF384D, #FF8A00); color: #fff;">KENZO</span>
             </a>
             <a href="/admin?tab=decorations" data-link class="filter-tab ${activeTab === 'decorations' ? 'active' : ''}">
-              Украшения аватарок <span class="admin-tab-counter" style="background: linear-gradient(135deg, #FF1F36, #FF8A00); color: #fff;">57</span>
+              Украшения аватарок <span class="admin-tab-counter" style="background: linear-gradient(135deg, #FF1F36, #FF8A00); color: #fff;">${DECORATIONS.length}</span>
             </a>
           ` : ''}
           <a href="/admin?tab=logs" data-link class="filter-tab ${activeTab === 'logs' ? 'active' : ''}">Журнал аудита</a>
@@ -371,7 +384,7 @@ export function renderAdminPanel(data = {}) {
             <div>
               <h3 style="color: #FFF; font-size: 16px;">Пользователи форума и управление ролями</h3>
               <p style="font-size: 12px; color: #8A96A6; margin-top: 2px;">
-                Вы можете назначать игроку сразу несколько ролей и плашек, а также удалять их в 1 клик.
+                Поиск пользователей, управление ролями и плашками, временная блокировка, варны и удаление аккаунтов.
               </p>
             </div>
             ${canManageCustomBadges ? `
@@ -381,18 +394,75 @@ export function renderAdminPanel(data = {}) {
             ` : ''}
           </div>
 
+          <!-- Search & Filter Controls -->
+          <div class="admin-users-filter-box" style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; background: #0E1017; padding: 12px 14px; border-radius: 8px; border: 1px solid #1E2330;">
+            <div style="flex: 1; min-width: 220px;">
+              <input type="text" id="admin-user-search-input" class="modal-input" placeholder="🔍 Поиск по нику, RP имени или email..." value="${escapeHtml(searchQuery)}" style="padding: 7px 12px; font-size: 12.5px;" />
+            </div>
+            <div style="min-width: 170px;">
+              <select id="admin-user-role-filter" class="modal-select" style="background: #12151D; border-color: #262D3D; color: #FFF; padding: 7px 10px; font-size: 12px;">
+                <option value="all" ${selectedRole === 'all' ? 'selected' : ''}>Все роли</option>
+                <option value="superadmin" ${selectedRole === 'superadmin' ? 'selected' : ''}>👑 Главный Администратор</option>
+                <option value="admin" ${selectedRole === 'admin' ? 'selected' : ''}>👑 Администратор</option>
+                <option value="moderator" ${selectedRole === 'moderator' ? 'selected' : ''}>👑 Модератор</option>
+                <option value="helper" ${selectedRole === 'helper' ? 'selected' : ''}>🛡️ Хелпер</option>
+                <option value="verified" ${selectedRole === 'verified' ? 'selected' : ''}>🛡️ Проверенный</option>
+                <option value="streamer" ${selectedRole === 'streamer' ? 'selected' : ''}>⭐ Стример</option>
+                <option value="vip" ${selectedRole === 'vip' ? 'selected' : ''}>💎 VIP</option>
+                <option value="player" ${selectedRole === 'player' ? 'selected' : ''}>👤 Игрок</option>
+                <option value="guest" ${selectedRole === 'guest' ? 'selected' : ''}>👤+ Гость</option>
+                <option value="developer" ${selectedRole === 'developer' ? 'selected' : ''}>&lt;/&gt; Разработчик</option>
+              </select>
+            </div>
+            <button type="button" id="btn-admin-search-users" class="btn-create-topic" style="padding: 7px 16px; font-size: 12.5px;">
+              Найти
+            </button>
+            ${(searchQuery || (selectedRole && selectedRole !== 'all')) ? `
+              <button type="button" id="btn-admin-reset-users-filter" class="btn-secondary" style="padding: 7px 12px; font-size: 12px;">
+                ✕ Сбросить
+              </button>
+            ` : ''}
+            <div style="font-size: 12px; color: #8A96A6; margin-left: auto;">
+              Найдено: <strong style="color: #FFF;">${pagination.total !== undefined ? pagination.total : users.length}</strong> пользователей
+            </div>
+          </div>
+
           <div class="admin-users-table">
-            ${users.map(u => `
+            ${users.length === 0 ? `
+              <div style="text-align: center; padding: 32px; color: #8A96A6; font-size: 13px;">
+                Пользователи не найдены. Попробуйте изменить параметры поиска.
+              </div>
+            ` : users.map(u => {
+              const warnsCount = u.warns_count || u.active_warns || 0;
+              const isBanned = Boolean(u.is_banned);
+              const isProtectedUser = ['superadmin'].includes(u.role) || u.username === 'KENZO' || (state.user && state.user.id === u.id);
+
+              return `
               <div class="admin-user-row" id="user-row-${u.id}">
                 <div class="admin-user-avatar-wrap">
-                  <img src="${u.avatar || '/assets/avatar_ivan.jpg'}" alt="${u.username}" class="admin-user-avatar" />
+                  <img src="${u.avatar || '/assets/avatar_ivan.jpg'}" alt="${escapeHtml(u.username)}" class="admin-user-avatar" />
                   ${u.avatar_decoration ? `<img src="${u.avatar_decoration}" class="avatar-decoration" alt="" />` : ''}
                 </div>
                 
-                <div class="admin-user-info-col">
-                  <div style="font-weight: 700; color: #FFF; font-size: 14px;">${u.username}</div>
-                  <div style="font-size: 12px; color: #8A96A6;">
-                    ${u.email} • LVL: <strong>${u.level || 1}</strong> • Репутация: <strong style="color: #10B981;">+${u.reputation || 0}</strong>
+                <div class="admin-user-info-col" style="min-width: 170px;">
+                  <div style="font-weight: 700; color: #FFF; font-size: 14px; display: flex; align-items: center; gap: 6px;">
+                    <span>${renderStyledUsername(u.username, u.name_style)}</span>
+                    ${u.character_name && u.character_name !== u.username ? `<span style="font-size: 11px; color: #94A3B8; font-weight: normal;">(${escapeHtml(u.character_name)})</span>` : ''}
+                  </div>
+                  <div style="font-size: 11.5px; color: #8A96A6; margin-top: 2px;">
+                    ${escapeHtml(u.email)} • LVL: <strong>${u.level || 1}</strong> • Репутация: <strong style="color: #10B981;">+${u.reputation || 0}</strong>
+                  </div>
+                  <div style="display: flex; gap: 6px; align-items: center; margin-top: 5px; flex-wrap: wrap;">
+                    ${isBanned ? `
+                      <span class="badge-banned" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.5); color: #EF4444; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px;" title="${escapeHtml(u.ban_reason || 'Без причины')}">
+                        ⛔ Бан ${u.banned_until ? `до ${new Date(u.banned_until).toLocaleDateString('ru-RU')}` : 'навсегда'}
+                      </span>
+                    ` : `
+                      <span style="color: #10B981; font-size: 10.5px; font-weight: 600;">● Активен</span>
+                    `}
+                    <span class="badge-warns" style="background: ${warnsCount > 0 ? (warnsCount >= 3 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(234, 179, 8, 0.2)') : 'rgba(255,255,255,0.05)'}; border: 1px solid ${warnsCount > 0 ? (warnsCount >= 3 ? '#EF4444' : '#EAB308') : '#262D3D'}; color: ${warnsCount > 0 ? (warnsCount >= 3 ? '#EF4444' : '#FDE047') : '#94A3B8'}; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px;" title="Активных варнов: ${warnsCount}/3">
+                      ⚠️ Варны: ${warnsCount}/3
+                    </span>
                   </div>
                 </div>
 
@@ -400,11 +470,11 @@ export function renderAdminPanel(data = {}) {
                 <div class="admin-user-badges-box" id="user-badges-box-${u.id}">
                   <div class="user-assigned-chips-wrap">
                     ${(u.badges || []).map(b => `
-                      <div class="user-badge-chip" style="--chip-color: ${b.color || '#FF1F36'};" title="${b.title || b.key}">
+                      <div class="user-badge-chip" style="--chip-color: ${b.color || '#FF1F36'};" title="${escapeHtml(b.title || b.key)}">
                         <span class="chip-icon">${BADGE_ICONS[b.icon] || BADGE_ICONS.crown}</span>
-                        <span class="chip-title">${b.title || b.key}</span>
+                        <span class="chip-title">${escapeHtml(b.title || b.key)}</span>
                         ${(u.badges || []).length > 1 ? `
-                          <button type="button" class="btn-remove-user-badge" data-action="remove-user-badge" data-user-id="${u.id}" data-badge-key="${b.key}" title="Снять плашку ${b.title || b.key}">✕</button>
+                          <button type="button" class="btn-remove-user-badge" data-action="remove-user-badge" data-user-id="${u.id}" data-badge-key="${b.key}" title="Снять плашку ${escapeHtml(b.title || b.key)}">✕</button>
                         ` : ''}
                       </div>
                     `).join('')}
@@ -424,8 +494,8 @@ export function renderAdminPanel(data = {}) {
                           ${customBadges.map(cb => `
                             <button type="button" class="assign-menu-item" data-action="assign-badge" data-user-id="${u.id}" data-badge-key="${cb.key}">
                               <span class="assign-item-dot" style="background: ${cb.color};"></span>
-                              <span class="assign-item-title">${cb.title}</span>
-                              <span class="assign-item-sub">${cb.subtitle}</span>
+                              <span class="assign-item-title">${escapeHtml(cb.title)}</span>
+                              <span class="assign-item-sub">${escapeHtml(cb.subtitle)}</span>
                             </button>
                           `).join('')}
                         ` : ''}
@@ -434,8 +504,8 @@ export function renderAdminPanel(data = {}) {
                         ${Object.keys(BADGES).map(key => `
                           <button type="button" class="assign-menu-item" data-action="assign-badge" data-user-id="${u.id}" data-badge-key="${key}">
                             <span class="assign-item-dot" style="background: ${BADGES[key].color};"></span>
-                            <span class="assign-item-title">${BADGES[key].title}</span>
-                            <span class="assign-item-sub">${BADGES[key].subtitle}</span>
+                            <span class="assign-item-title">${escapeHtml(BADGES[key].title)}</span>
+                            <span class="assign-item-sub">${escapeHtml(BADGES[key].subtitle)}</span>
                           </button>
                         `).join('')}
                       </div>
@@ -444,12 +514,12 @@ export function renderAdminPanel(data = {}) {
                 </div>
 
                 <!-- Primary Role Selector & Quick Actions -->
-                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                  <button type="button" class="btn-create-topic btn-admin-user-awards" data-user-id="${u.id}" data-username="${u.username}" data-level="${u.level || 1}" data-xp="${u.current_xp || 0}" data-rep="${u.reputation || 0}" style="padding: 6px 12px; font-size: 11.5px; background: linear-gradient(135deg, #FF1F36, #FF8A00); display: inline-flex; align-items: center; gap: 6px;">
-                    ${ICONS.award} <span>Уровень и Награды</span>
+                <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                  <button type="button" class="btn-create-topic btn-admin-user-awards" data-user-id="${u.id}" data-username="${escapeHtml(u.username)}" data-level="${u.level || 1}" data-xp="${u.current_xp || 0}" data-rep="${u.reputation || 0}" style="padding: 6px 10px; font-size: 11px; background: linear-gradient(135deg, #FF1F36, #FF8A00); display: inline-flex; align-items: center; gap: 5px;" title="Уровень и Награды">
+                    ${ICONS.award} <span>Награды</span>
                   </button>
 
-                  <select class="modal-select change-role-select" data-user-id="${u.id}" title="Основная системная роль" style="width: 170px; padding: 6px 10px; font-size: 11.5px; font-weight: 600; background: #12151D; border-color: #262D3D; color: #FFF;">
+                  <select class="modal-select change-role-select" data-user-id="${u.id}" title="Основная системная роль" style="width: 155px; padding: 5px 8px; font-size: 11px; font-weight: 600; background: #12151D; border-color: #262D3D; color: #FFF;">
                     <option value="superadmin" ${u.role === 'superadmin' ? 'selected' : ''}>👑 Главный Администратор</option>
                     <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>👑 Администратор</option>
                     <option value="moderator" ${u.role === 'moderator' ? 'selected' : ''}>👑 Модератор</option>
@@ -462,22 +532,151 @@ export function renderAdminPanel(data = {}) {
                     <option value="developer" ${u.role === 'developer' ? 'selected' : ''}>&lt;/&gt; Разработчик</option>
                   </select>
 
-                  ${isIvanPetrov ? `
-                    <a href="/admin?tab=decorations&assign_user=${u.id}" data-link class="btn-secondary" style="padding: 6px 10px; font-size: 11.5px; border-color: rgba(255, 138, 0, 0.4); color: #FFF; display: inline-flex; align-items: center; gap: 4px;" title="Выдать или изменить украшение аватарки">
-                      <span>Украшение</span>
+                  ${isFounder ? `
+                    <a href="/admin?tab=decorations&assign_user=${u.id}" data-link class="btn-secondary" style="padding: 5px 8px; font-size: 11px; border-color: rgba(255, 138, 0, 0.4); color: #FFF;" title="Выдать или изменить украшение аватарки">
+                      Украшение
                     </a>
                   ` : ''}
 
-                  <button class="btn-secondary ${u.is_banned ? '' : 'danger'}" data-action="toggle-ban" data-user-id="${u.id}" data-banned="${u.is_banned}" style="padding: 6px 10px; font-size: 11.5px;">
-                    ${u.is_banned ? 'Разблокировать' : 'Забанить'}
-                  </button>
+                  ${isBanned ? `
+                    <button type="button" class="btn-secondary" data-action="unban-user" data-user-id="${u.id}" data-username="${escapeHtml(u.username)}" style="padding: 5px 8px; font-size: 11px; border-color: #10B981; color: #10B981;" title="Разблокировать пользователя">
+                      Разбан
+                    </button>
+                  ` : `
+                    <button type="button" class="btn-secondary danger" data-action="open-ban-modal" data-user-id="${u.id}" data-username="${escapeHtml(u.username)}" style="padding: 5px 8px; font-size: 11px;" title="Заблокировать аккаунт на срок">
+                      Бан
+                    </button>
+                  `}
 
-                  <button class="btn-secondary" data-action="warn-user" data-user-id="${u.id}" style="padding: 6px 10px; font-size: 11.5px;">
+                  <button type="button" class="btn-secondary" data-action="open-warn-modal" data-user-id="${u.id}" data-username="${escapeHtml(u.username)}" data-warns="${warnsCount}" style="padding: 5px 8px; font-size: 11px; border-color: rgba(234, 179, 8, 0.4); color: #FDE047;" title="Выдать или снять варн">
                     Варн
                   </button>
+
+                  ${!isProtectedUser ? `
+                    <button type="button" class="btn-secondary danger" data-action="delete-user" data-user-id="${u.id}" data-username="${escapeHtml(u.username)}" style="padding: 5px 8px; font-size: 11px; background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.4); color: #EF4444;" title="Удалить аккаунт безвозвратно">
+                      🗑️
+                    </button>
+                  ` : ''}
                 </div>
               </div>
-            `).join('')}
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Pagination Bar -->
+          ${(pagination && pagination.totalPages > 1) ? `
+            <div class="admin-pagination-bar" style="display: flex; justify-content: space-between; align-items: center; margin-top: 18px; padding-top: 14px; border-top: 1px solid #1E2330; flex-wrap: wrap; gap: 10px;">
+              <div style="font-size: 12px; color: #8A96A6;">
+                Страница <strong style="color: #FFF;">${pagination.page}</strong> из <strong style="color: #FFF;">${pagination.totalPages}</strong> (Всего: ${pagination.total})
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn-secondary btn-admin-page-nav" data-page="${pagination.page - 1}" ${pagination.page <= 1 ? 'disabled style="opacity: 0.35; cursor: not-allowed;"' : ''}>
+                  « Назад
+                </button>
+                <button type="button" class="btn-secondary btn-admin-page-nav" data-page="${pagination.page + 1}" ${pagination.page >= pagination.totalPages ? 'disabled style="opacity: 0.35; cursor: not-allowed;"' : ''}>
+                  Вперёд »
+                </button>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Ban Modal -->
+          <div class="modal-backdrop" id="modal-ban-user" style="display: none;">
+            <div class="modal-card" style="max-width: 480px;">
+              <div class="modal-header">
+                <h3 class="modal-title" style="color: #EF4444; display: flex; align-items: center; gap: 8px;">
+                  <span>⛔ Блокировка аккаунта</span>
+                </h3>
+                <button type="button" class="modal-close-btn" data-action="close-ban-modal">✕</button>
+              </div>
+              <div class="modal-body" style="padding: 20px;">
+                <p style="font-size: 13px; color: #8A96A6; margin-bottom: 14px;">
+                  Вы собираетесь заблокировать доступ пользователю <strong id="ban-modal-username" style="color: #FFF;"></strong>.
+                </p>
+                
+                <div class="modal-field">
+                  <label>Срок блокировки <span style="color:#FF1F36;">*</span></label>
+                  <select class="modal-select" id="ban-modal-duration" style="background: #12151D; border-color: #262D3D; color: #FFF;">
+                    <option value="1h">1 час</option>
+                    <option value="12h">12 часов</option>
+                    <option value="1d">1 день (24 часа)</option>
+                    <option value="3d">3 дня</option>
+                    <option value="7d" selected>7 дней (1 неделя)</option>
+                    <option value="30d">30 дней (1 месяц)</option>
+                    <option value="permanent">Навсегда (Перманентный бан)</option>
+                  </select>
+                </div>
+
+                <div class="modal-field">
+                  <label>Причина блокировки <span style="color:#FF1F36;">*</span></label>
+                  <input type="text" class="modal-input" id="ban-modal-reason" placeholder="Укажите причину..." value="Нарушение правил сервера" maxlength="255" />
+                </div>
+
+                <div style="margin-top: 10px;">
+                  <div style="font-size: 11px; color: #8A96A6; margin-bottom: 6px;">Быстрые шаблоны причин:</div>
+                  <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="btn-quick-reason" data-target="ban-modal-reason" style="font-size: 11px; padding: 4px 8px; background: rgba(255,255,255,0.05); border: 1px solid #262D3D; color: #CBD5E1; border-radius: 4px; cursor: pointer;">Нарушение правил сервера</button>
+                    <button type="button" class="btn-quick-reason" data-target="ban-modal-reason" style="font-size: 11px; padding: 4px 8px; background: rgba(255,255,255,0.05); border: 1px solid #262D3D; color: #CBD5E1; border-radius: 4px; cursor: pointer;">Читы / Стороннее ПО</button>
+                    <button type="button" class="btn-quick-reason" data-target="ban-modal-reason" style="font-size: 11px; padding: 4px 8px; background: rgba(255,255,255,0.05); border: 1px solid #262D3D; color: #CBD5E1; border-radius: 4px; cursor: pointer;">Неадекватное поведение</button>
+                    <button type="button" class="btn-quick-reason" data-target="ban-modal-reason" style="font-size: 11px; padding: 4px 8px; background: rgba(255,255,255,0.05); border: 1px solid #262D3D; color: #CBD5E1; border-radius: 4px; cursor: pointer;">Реклама сторонних ресурсов</button>
+                    <button type="button" class="btn-quick-reason" data-target="ban-modal-reason" style="font-size: 11px; padding: 4px 8px; background: rgba(255,255,255,0.05); border: 1px solid #262D3D; color: #CBD5E1; border-radius: 4px; cursor: pointer;">Оскорбление администрации</button>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--color-border);">
+                <button type="button" class="btn-secondary" data-action="close-ban-modal">Отмена</button>
+                <button type="button" class="btn-secondary danger" id="btn-confirm-ban" style="background: #EF4444; color: #FFF; font-weight: 700;">Подтвердить бан</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Warn Modal -->
+          <div class="modal-backdrop" id="modal-warn-user" style="display: none;">
+            <div class="modal-card" style="max-width: 520px;">
+              <div class="modal-header">
+                <h3 class="modal-title" style="color: #EAB308; display: flex; align-items: center; gap: 8px;">
+                  <span>⚠️ Предупреждения (Варны)</span>
+                </h3>
+                <button type="button" class="modal-close-btn" data-action="close-warn-modal">✕</button>
+              </div>
+              <div class="modal-body" style="padding: 20px;">
+                <p style="font-size: 13px; color: #8A96A6; margin-bottom: 12px;">
+                  Пользователь: <strong id="warn-modal-username" style="color: #FFF;"></strong> • Всего варнов: <span id="warn-modal-count" style="font-weight: 700; color: #FDE047;">0/3</span>
+                </p>
+
+                <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 6px; padding: 10px; margin-bottom: 14px; font-size: 12px; color: #FDE047;">
+                  ⚡ <strong>Внимание:</strong> При получении <strong>3 варнов</strong> аккаунт автоматически блокируется на <strong>7 дней</strong>!
+                </div>
+
+                <!-- History of active warnings -->
+                <div style="margin-bottom: 16px;">
+                  <label style="font-size: 12px; font-weight: 600; color: #CBD5E1; display: block; margin-bottom: 6px;">Список выданных предупреждений:</label>
+                  <div id="warn-modal-history" style="max-height: 150px; overflow-y: auto; background: #0E1017; border: 1px solid #1E2330; border-radius: 6px; padding: 8px;">
+                    <div style="font-size: 12px; color: #64748B; text-align: center; padding: 8px;">Загрузка истории...</div>
+                  </div>
+                </div>
+
+                <!-- Form to issue new warn -->
+                <div class="modal-field">
+                  <label>Причина нового варна <span style="color:#FF1F36;">*</span></label>
+                  <input type="text" class="modal-input" id="warn-modal-reason" placeholder="Укажите причину предупреждения..." value="Оффтоп / Нарушение регламента" maxlength="255" />
+                </div>
+
+                <div style="margin-top: 8px;">
+                  <div style="font-size: 11px; color: #8A96A6; margin-bottom: 6px;">Шаблоны причин:</div>
+                  <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="btn-quick-reason" data-target="warn-modal-reason" style="font-size: 11px; padding: 4px 8px; background: rgba(255,255,255,0.05); border: 1px solid #262D3D; color: #CBD5E1; border-radius: 4px; cursor: pointer;">Оффтоп</button>
+                    <button type="button" class="btn-quick-reason" data-target="warn-modal-reason" style="font-size: 11px; padding: 4px 8px; background: rgba(255,255,255,0.05); border: 1px solid #262D3D; color: #CBD5E1; border-radius: 4px; cursor: pointer;">Флуд в темах</button>
+                    <button type="button" class="btn-quick-reason" data-target="warn-modal-reason" style="font-size: 11px; padding: 4px 8px; background: rgba(255,255,255,0.05); border: 1px solid #262D3D; color: #CBD5E1; border-radius: 4px; cursor: pointer;">Неуважительное общение</button>
+                    <button type="button" class="btn-quick-reason" data-target="warn-modal-reason" style="font-size: 11px; padding: 4px 8px; background: rgba(255,255,255,0.05); border: 1px solid #262D3D; color: #CBD5E1; border-radius: 4px; cursor: pointer;">Провокация конфликта</button>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--color-border);">
+                <button type="button" class="btn-secondary" data-action="close-warn-modal">Отмена</button>
+                <button type="button" class="btn-secondary" id="btn-confirm-warn" style="background: linear-gradient(135deg, #EAB308, #CA8A04); color: #000; font-weight: 700; border: none;">Выдать варн (+1)</button>
+              </div>
+            </div>
           </div>
         </div>
       ` : ''}
@@ -710,12 +909,12 @@ export function renderAdminPanel(data = {}) {
   `;
 }
 
-function renderDecorationsTab(decorationsData, isIvanPetrov) {
-  if (!isIvanPetrov) {
+function renderDecorationsTab(decorationsData, isFounder) {
+  if (!isFounder) {
     return `
       <div class="empty-threads-card">
         <h3>Доступ запрещён</h3>
-        <p>Управление украшениями аватарок разрешено исключительно создателю проекта Ivan_Petrov.</p>
+        <p>Управление украшениями аватарок разрешено создателю проекта KENZO.</p>
       </div>
     `;
   }
@@ -735,10 +934,10 @@ function renderDecorationsTab(decorationsData, isIvanPetrov) {
         <div class="decorations-intro-text">
           <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
             <h2 class="decorations-admin-title">Управление украшениями аватарок Discord</h2>
-            <span class="founder-only-badge">🔒 Эксклюзив: Ivan_Petrov</span>
+            <span class="founder-only-badge">🔒 Эксклюзив: KENZO</span>
           </div>
           <p class="decorations-admin-sub">
-            На форуме загружено <strong>57 официальных Discord APNG-анимаций</strong>. Вы можете в реальном времени примерить и выдать любое украшение любому пользователю сервера.
+            На форуме загружено <strong>${decorations.length} официальных Discord APNG-анимаций</strong>. Вы можете в реальном времени примерить и выдать любое украшение любому пользователю сервера.
           </p>
         </div>
       </div>
@@ -779,7 +978,7 @@ function renderDecorationsTab(decorationsData, isIvanPetrov) {
             </div>
 
             <div class="modal-field">
-              <label>2. Выберите украшение из каталога (57 доступно):</label>
+              <label>2. Выберите украшение из каталога (${decorations.length} доступно):</label>
               <select class="modal-select" id="assign-decoration-select">
                 ${decorations.map(d => `
                   <option value="${d.id}" data-url="${d.url}" data-name="${d.name}" ${d.id === 'phoenix' ? 'selected' : ''}>
@@ -842,11 +1041,11 @@ function renderDecorationsTab(decorationsData, isIvanPetrov) {
         `}
       </div>
 
-      <!-- Full 57 Decorations Gallery -->
+      <!-- Full Decorations Gallery -->
       <div class="decorations-gallery-section">
         <div class="gallery-section-header">
           <div>
-            <h3 style="color: #FFF; font-size: 16px; font-weight: 700;">Каталог всех 57 украшений аватарок</h3>
+            <h3 style="color: #FFF; font-size: 16px; font-weight: 700;">Каталог всех ${decorations.length} украшений аватарок</h3>
             <p style="color: #8E95A5; font-size: 12.5px; margin-top: 2px;">Кликните на любое оформление, чтобы сразу примерить и выбрать его для выдачи</p>
           </div>
 

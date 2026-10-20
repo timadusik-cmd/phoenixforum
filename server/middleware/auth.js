@@ -29,11 +29,26 @@ export function optionalAuth(req, res, next) {
     const decoded = jwt.verify(token, JWT_SECRET);
     const user = db.prepare(`
       SELECT id, email, username, character_name, avatar, avatar_decoration, profile_effect, name_style, role, role_color, role_badge, status, 
-             level, current_xp, reputation, fraction, server, bio, signature, is_banned, ban_reason, created_at
+             level, current_xp, reputation, fraction, server, bio, signature, is_banned, banned_until, ban_reason, created_at
       FROM users WHERE id = ?
     `).get(decoded.id);
 
-    if (user && !user.is_banned) {
+    if (user) {
+      if (user.is_banned) {
+        if (user.banned_until && new Date(user.banned_until).getTime() <= Date.now()) {
+          try {
+            db.prepare("UPDATE users SET is_banned = 0, banned_until = NULL, ban_reason = NULL WHERE id = ?").run(user.id);
+          } catch (e) {}
+          user.is_banned = 0;
+          user.banned_until = null;
+          user.ban_reason = null;
+        } else {
+          req.bannedUser = user;
+          req.user = null;
+          return next();
+        }
+      }
+
       req.user = user;
       const isPassivePoll = req.originalUrl && req.originalUrl.includes('/stats/online');
       const now = Date.now();
@@ -55,11 +70,16 @@ export function optionalAuth(req, res, next) {
 
 export function requireAuth(req, res, next) {
   optionalAuth(req, res, () => {
+    if (req.bannedUser) {
+      const untilStr = req.bannedUser.banned_until 
+        ? `до ${new Date(req.bannedUser.banned_until).toLocaleString('ru-RU')}` 
+        : 'бессрочно (навсегда)';
+      return res.status(403).json({ 
+        error: `Ваш аккаунт заблокирован ${untilStr}. Причина: ${req.bannedUser.ban_reason || 'Нарушение правил проекта'}` 
+      });
+    }
     if (!req.user) {
       return res.status(401).json({ error: 'Требуется авторизация для выполнения этого действия.' });
-    }
-    if (req.user.is_banned) {
-      return res.status(403).json({ error: `Ваш аккаунт заблокирован. Причина: ${req.user.ban_reason || 'Нарушение правил'}` });
     }
     next();
   });

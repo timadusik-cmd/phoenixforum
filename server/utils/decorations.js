@@ -481,6 +481,253 @@ export const DECORATIONS = [
     description: 'Каллиграфические брызги туши и лепестки сакуры',
     category: 'festive',
     url: '/decorations/sakura_ink.png'
+  },
+
+  // --- New Additions from CDN ---
+  // Phoenix Special
+  {
+    id: 'solar_flare',
+    file: 'solar_flare.png',
+    name: 'Солнечная Вспышка',
+    description: 'Яростное золотисто-оранжевое пламя пылающей сверхновой',
+    category: 'phoenix',
+    url: '/decorations/solar_flare.png'
+  },
+  {
+    id: 'fire_swirl',
+    file: 'fire_swirl.png',
+    name: 'Огненный Вихрь',
+    description: 'Испепеляющий золотой вихрь чистого пламени',
+    category: 'phoenix',
+    url: '/decorations/fire_swirl.png'
+  },
+
+  // Dark & Dangerous
+  {
+    id: 'crow_swarm',
+    file: 'crow_swarm.png',
+    name: 'Стая Воронов',
+    description: 'Кружащие черные перья и силуэты мистических воронов',
+    category: 'dark',
+    url: '/decorations/crow_swarm.png'
+  },
+  {
+    id: 'spectral_skulls',
+    file: 'spectral_skulls.png',
+    name: 'Призрачные Черепа',
+    description: 'Бирюзовое потустороннее пламя и шепчущие черепа душ',
+    category: 'dark',
+    url: '/decorations/spectral_skulls.png'
+  },
+  {
+    id: 'blood_moon',
+    file: 'blood_moon.png',
+    name: 'Кровавая Луна',
+    description: 'Багровый лунный диск с искрящейся аурой и темной энергией',
+    category: 'dark',
+    url: '/decorations/blood_moon.png'
+  },
+  {
+    id: 'oni_demon_mask',
+    file: 'oni_demon_mask.png',
+    name: 'Маска Золотого Они',
+    description: 'Зловещая маска демона они с рогами и клубами белого дыма',
+    category: 'dark',
+    url: '/decorations/oni_demon_mask.png'
+  },
+  {
+    id: 'dark_matter_core',
+    file: 'dark_matter_core.png',
+    name: 'Ядро Темной Материи',
+    description: 'Гравитационное ядро черной дыры с огненными протуберанцами',
+    category: 'dark',
+    url: '/decorations/dark_matter_core.png'
+  },
+  {
+    id: 'eldritch_eyes',
+    file: 'eldritch_eyes.png',
+    name: 'Очи Древнего Ужаса',
+    description: 'Пульсирующая биомасса Бездны с множеством моргающих глаз',
+    category: 'dark',
+    url: '/decorations/eldritch_eyes.png'
+  },
+
+  // Cyberpunk & Neon
+  {
+    id: 'cyber_cat_ears',
+    file: 'cyber_cat_ears.png',
+    name: 'Кибернетические Ушки',
+    description: 'Белые футуристические меха-ушки и звуковой воротник',
+    category: 'cyber',
+    url: '/decorations/cyber_cat_ears.png'
+  },
+  {
+    id: 'neon_flame_ring',
+    file: 'neon_flame_ring.png',
+    name: 'Неоновое Пламя',
+    description: 'Ярко-пурпурное вращающееся кольцо мистического неонового огня',
+    category: 'cyber',
+    url: '/decorations/neon_flame_ring.png'
+  },
+  {
+    id: 'neon_pulse_red',
+    file: 'neon_pulse_red.png',
+    name: 'Алый Неоновый Пульс',
+    description: 'Минималистичный неоновый красный контур с пульсацией света',
+    category: 'cyber',
+    url: '/decorations/neon_pulse_red.png'
+  },
+  {
+    id: 'glitch_butterfly',
+    file: 'glitch_butterfly.png',
+    name: 'Кибер-Бабочка Глитч',
+    description: 'Алая цифровая бабочка с эффектом глитч-помех',
+    category: 'cyber',
+    url: '/decorations/glitch_butterfly.png'
+  },
+  {
+    id: 'cyber_dual_ring',
+    file: 'cyber_dual_ring.png',
+    name: 'Неоновый Двойной Ореол',
+    description: 'Градиентный круг неоново-малинового и бирюзового свечения',
+    category: 'cyber',
+    url: '/decorations/cyber_dual_ring.png'
+  },
+
+  // Magic & Space
+  {
+    id: 'celestial_chandelier',
+    file: 'celestial_chandelier.png',
+    name: 'Небесная Люстра',
+    description: 'Золотая королевская арка с подвесками и сиянием звезд',
+    category: 'magic',
+    url: '/decorations/celestial_chandelier.png'
+  },
+  {
+    id: 'lunar_eclipse',
+    file: 'lunar_eclipse.png',
+    name: 'Серебряный Полумесяц',
+    description: 'Мерцающая луна в ночном небе с россыпью звезд',
+    category: 'magic',
+    url: '/decorations/lunar_eclipse.png'
+  },
+  {
+    id: 'golden_rings',
+    file: 'golden_rings.png',
+    name: 'Орбитальные Кольца',
+    description: 'Вращающиеся золотые кольца астролябии с солнечным сиянием',
+    category: 'magic',
+    url: '/decorations/golden_rings.png'
+  },
+  {
+    id: 'violet_plasma',
+    file: 'violet_plasma.png',
+    name: 'Фиолетовая Плазма',
+    description: 'Энергетическое поле с переливающимися электрическими волнами',
+    category: 'magic',
+    url: '/decorations/violet_plasma.png'
+  },
+  {
+    id: 'golden_eclipse',
+    file: 'golden_eclipse.png',
+    name: 'Золотое Затмение',
+    description: 'Корона солнечного затмения с мерцающими лучами света',
+    category: 'magic',
+    url: '/decorations/golden_eclipse.png'
+  },
+  {
+    id: 'lunar_moth',
+    file: 'lunar_moth.png',
+    name: 'Призрачный Мотылек',
+    description: 'Крылья серебристой лунной бабочки с мягким свечением',
+    category: 'magic',
+    url: '/decorations/lunar_moth.png'
+  },
+  {
+    id: 'deep_space',
+    file: 'deep_space.png',
+    name: 'Глубокий Космос',
+    description: 'Таинственное мерцание космической пыли и далеких звезд',
+    category: 'magic',
+    url: '/decorations/deep_space.png'
+  },
+  {
+    id: 'arcane_circle',
+    file: 'arcane_circle.png',
+    name: 'Магическая Печать',
+    description: 'Светящийся рунический круг призыва с древними символами',
+    category: 'magic',
+    url: '/decorations/arcane_circle.png'
+  },
+
+  // Gaming & Victory
+  {
+    id: 'ronin_hat',
+    file: 'ronin_hat.png',
+    name: 'Шляпа Ронина под Дождем',
+    description: 'Традиционная соломенная шляпа самурая под проливным дождем',
+    category: 'gaming',
+    url: '/decorations/ronin_hat.png'
+  },
+  {
+    id: 'cyan_water_dragon',
+    file: 'cyan_water_dragon.png',
+    name: 'Лазурный Водный Дракон',
+    description: 'Поток чистой воды в форме грациозного восточного дракона',
+    category: 'gaming',
+    url: '/decorations/cyan_water_dragon.png'
+  },
+  {
+    id: 'crossed_katanas',
+    file: 'crossed_katanas.png',
+    name: 'Скрещенные Катаны',
+    description: 'Стальные клинки самурая в вихре лепестков сакуры',
+    category: 'gaming',
+    url: '/decorations/crossed_katanas.png'
+  },
+  {
+    id: 'infinite_void_eye',
+    file: 'infinite_void_eye.png',
+    name: 'Око Бесконечности',
+    description: 'Мистический глаз бездны и жест техники расширения территории',
+    category: 'gaming',
+    url: '/decorations/infinite_void_eye.png'
+  },
+
+  // Cute & Anime
+  {
+    id: 'sakura_tree',
+    file: 'sakura_tree.png',
+    name: 'Ветви Сакуры',
+    description: 'Цветущее японское вишневое дерево и опадающие розовые лепестки',
+    category: 'cute',
+    url: '/decorations/sakura_tree.png'
+  },
+  {
+    id: 'witch_hat_tail',
+    file: 'witch_hat_tail.png',
+    name: 'Шляпа Волшебницы & Хвост',
+    description: 'Остроконечная ведьминская шляпа и магический пушистый хвост',
+    category: 'cute',
+    url: '/decorations/witch_hat_tail.png'
+  },
+  {
+    id: 'lunar_cat_wings',
+    file: 'lunar_cat_wings.png',
+    name: 'Лунная Кошечка & Крыло',
+    description: 'Аниме ушки кошки, полумесяц и сверкающее ледяное крыло',
+    category: 'cute',
+    url: '/decorations/lunar_cat_wings.png'
+  },
+
+  // Festive & Halloween
+  {
+    id: 'halloween_pumpkin',
+    file: 'halloween_pumpkin.webp',
+    name: 'Хэллоуинский Самурай',
+    description: 'Пылающая тыква, крылья летучей мыши и катана с осенними огнями',
+    category: 'festive',
+    url: '/decorations/halloween_pumpkin.webp'
   }
 ];
 
